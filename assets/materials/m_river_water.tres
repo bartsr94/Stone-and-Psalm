@@ -1,0 +1,12 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/materials/river_water.gdshader" id="1_river"]
+
+[resource]
+resource_name = "M_RiverWater"
+shader = ExtResource("1_river")
+shader_parameter/water_color = Color(0.353, 0.431, 0.439, 1)
+shader_parameter/flow_speed = 0.08
+shader_parameter/flow_scale = 18.0
+shader_parameter/wave_strength = 0.035
+shader_parameter/alpha = 0.86

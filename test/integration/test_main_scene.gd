@@ -1,8 +1,8 @@
-## The Phase 0 scene is wired the way the conventions require.
+## The Phase 1 scene is wired the way the conventions require.
 ##
-## This is the test that would have caught a camera left on perspective projection, a sun with
-## shadows switched off, or an environment scene that silently failed to instance — none of
-## which throw, and all of which are only visible in a screenshot nobody has taken yet.
+## This is the test that would catch a camera left on perspective projection, a terrain renderer
+## missing from the scene, or an environment that silently failed to instance — none of which
+## throw, and all of which are only visible in a screenshot nobody has taken yet.
 extends GutTest
 
 const MAIN_SCENE := "res://scenes/world/main.tscn"
@@ -11,6 +11,10 @@ var _scene: Node = null
 
 
 func before_each() -> void:
+	# Terrain is an autoload and the renderer consumes its dirty queue. Rebuild it so every
+	# integration test receives the same freshly generated scene rather than depending on test
+	# ordering.
+	Terrain.build_preset("founding_valley")
 	_scene = add_child_autofree(load(MAIN_SCENE).instantiate())
 
 
@@ -77,7 +81,7 @@ func test_one_sun_casting_shadows() -> void:
 		sun.directional_shadow_mode, DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS,
 		"four cascades, per Architecture Guide 4.6"
 	)
-	assert_almost_eq(sun.directional_shadow_max_distance, 150.0, 0.01, "150 m shadow range")
+	assert_almost_eq(sun.directional_shadow_max_distance, 400.0, 0.01, "400 m shadow range")
 	assert_gt(sun.rotation_degrees.x, -90.0, "the sun is above the horizon")
 	assert_lt(sun.rotation_degrees.x, 0.0, "and not below it")
 
@@ -101,52 +105,46 @@ func test_no_baked_global_illumination() -> void:
 	assert_false(env.sdfgi_enabled, "no SDFGI")
 
 
-func test_ground_and_one_greybox_building() -> void:
-	var ground: MeshInstance3D = _find("Ground") as MeshInstance3D
-	var building: MeshInstance3D = _find("GreyboxBuilding") as MeshInstance3D
-	assert_not_null(ground, "there is a ground plane")
-	assert_not_null(building, "and one greybox building on it")
+func test_terrain_renderer_has_all_chunks() -> void:
+	var renderer: Node3D = _find("TerrainRenderer") as Node3D
+	assert_not_null(renderer, "the Phase 1 terrain renderer is instanced")
+	var chunk_count: int = 0
+	for child in renderer.get_children():
+		if not child.name.begins_with("Chunk_"):
+			continue
+		chunk_count += 1
+		var chunk := child as MeshInstance3D
+		assert_not_null(chunk, "every terrain chunk is a mesh instance")
+		assert_not_null(chunk.mesh, "every terrain chunk has a generated mesh")
+		assert_eq(chunk.mesh.get_surface_count(), 1, "every chunk has one surface")
+	assert_eq(chunk_count, 36, "192 cells produce 6 by 6 32-cell chunks")
 
-	var box: BoxMesh = building.mesh as BoxMesh
-	assert_almost_eq(
-		building.position.y, box.size.y * 0.5, 0.0001,
-		"the building sits on the ground rather than sunk into it"
+
+func test_terrain_renderer_uses_the_shared_material() -> void:
+	var renderer: Node3D = _find("TerrainRenderer") as Node3D
+	var first_chunk := renderer.find_child("Chunk_0_0", true, false) as MeshInstance3D
+	assert_eq(
+		(first_chunk.material_override as Material).resource_path,
+		"res://assets/materials/m_stone_and_psalm.tres",
+		"terrain uses the shared vertex-colour material"
 	)
 
 
-func test_ground_covers_the_widest_zoom() -> void:
-	# Found by looking at a render: at the widest zoom the ground ran out and the camera saw
-	# past the edge of the world. A 40° pitch stretches the vertical extent across the ground
-	# by 1/sin(40°), which is the part that is easy to forget.
-	var ground: MeshInstance3D = _find("Ground") as MeshInstance3D
-	var plane: PlaneMesh = ground.mesh as PlaneMesh
-	var widest: float = Tuning.get_num("camera.ortho_size_max_m")
-	var pitch: float = deg_to_rad(Tuning.get_num("camera.pitch_deg"))
-
-	var viewport_width: float = float(ProjectSettings.get_setting("display/window/size/viewport_width", 1152))
-	var viewport_height: float = float(ProjectSettings.get_setting("display/window/size/viewport_height", 648))
-
-	var needed_across: float = widest * (viewport_width / viewport_height)
-	var needed_along: float = widest / sin(pitch)
-
-	assert_gte(plane.size.x, needed_across, "ground spans the widest zoom across the screen")
-	assert_gte(plane.size.y, needed_along, "and up the screen, where the pitch stretches it")
-
-
-func test_ground_is_a_whole_number_of_terrain_cells() -> void:
-	var ground: MeshInstance3D = _find("Ground") as MeshInstance3D
-	var plane: PlaneMesh = ground.mesh as PlaneMesh
-	var cell: float = Tuning.get_num("world.terrain_cell_m")
-	assert_almost_eq(
-		fmod(plane.size.x, cell), 0.0, 0.0001,
-		"the ground divides evenly into 2 m cells"
+func test_terrain_renderer_has_a_derived_river_surface() -> void:
+	var river: MeshInstance3D = _find("RiverSurface") as MeshInstance3D
+	assert_not_null(river, "the river surface is derived from water cells")
+	assert_not_null(river.mesh, "the river surface has a generated mesh")
+	assert_eq(river.mesh.get_surface_count(), 1, "the river is one batched surface")
+	assert_eq(
+		(river.material_override as Material).resource_path,
+		"res://assets/materials/m_river_water.tres",
+		"the river uses its flowing water material"
 	)
-	assert_almost_eq(fmod(plane.size.y, cell), 0.0, 0.0001, "on both axes")
 
 
-func test_building_is_on_whole_snap_units() -> void:
-	var building: MeshInstance3D = _find("GreyboxBuilding") as MeshInstance3D
-	var box: BoxMesh = building.mesh as BoxMesh
-	var snap: float = Tuning.get_num("world.building_snap_m")
-	assert_almost_eq(fmod(box.size.x, snap), 0.0, 0.0001, "width is a whole number of snap units")
-	assert_almost_eq(fmod(box.size.z, snap), 0.0, 0.0001, "and so is depth")
+func test_terrain_dimensions_match_the_founding_preset() -> void:
+	assert_eq(Terrain.cells_across(), 192, "the founding valley is 192 cells across")
+	assert_eq(Terrain.chunk_cells(), 32, "terrain chunks are 32 cells across")
+	assert_eq(Terrain.chunks_across(), 6, "the map divides into six chunks per axis")
+	assert_almost_eq(Terrain.cell_size_m(), 2.0, 0.0001, "each cell is 2 m")
+	assert_almost_eq(Terrain.world_size_m(), 384.0, 0.0001, "the valley spans 384 m")
