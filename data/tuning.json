@@ -33,6 +33,7 @@
   "seasons": {
     "_comment": "Phase 2.4 season blend. day-of-year keyframes in data/seasons.json are lerped by scripts/sim/season_curve.gd. snow_line_lapse_m is how much the winter snow line drops per unit of season snow_coverage; it is feel. transition_days softens the four keyframes into ramps rather than steps.",
     "transition_days": 26.0,
+    "snow_line_base_m": 40.0,
     "snow_line_lapse_m": 34.0
   },
 

@@ -29,7 +29,7 @@ func test_a_day_on_a_peak_returns_that_keyframe() -> void:
 func test_scalars_interpolate_between_keyframes() -> void:
 	# Day 62 is halfway (span 85) between the winter (20) and spring (105) peaks.
 	var mid := _blender.sample(62)
-	var expected_snow := lerpf(0.90, 0.06, (62.0 - 20.0) / 85.0)
+	var expected_snow := lerpf(0.90, 0.00, (62.0 - 20.0) / 85.0)
 	assert_almost_eq(mid["snow_coverage"], expected_snow, 0.0001, "snow melting through spring")
 	assert_between(mid["sun_energy_scale"], 0.72, 1.00, "sun strengthens from winter to spring")
 

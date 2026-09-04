@@ -31,7 +31,7 @@
       "fog_color": "#cdd3d0",
       "ground_tint": "#eef2e4",
       "water_color": "#57706f",
-      "snow_coverage": 0.06,
+      "snow_coverage": 0.00,
       "broadleaf_tint": "#6e8a4a",
       "broadleaf_bare": false,
       "pine_tint": "#3e5232"

@@ -144,13 +144,32 @@ func test_terrain_renderer_has_all_chunks() -> void:
 	assert_eq(chunk_count, 36, "192 cells produce 6 by 6 32-cell chunks")
 
 
-func test_terrain_renderer_uses_the_shared_material() -> void:
+func test_terrain_renderer_uses_the_snow_shader_material() -> void:
 	var renderer: Node3D = _find("TerrainRenderer") as Node3D
 	var first_chunk := renderer.find_child("Chunk_0_0", true, false) as MeshInstance3D
+	var material := first_chunk.material_override as Material
 	assert_eq(
-		(first_chunk.material_override as Material).resource_path,
-		"res://assets/materials/m_stone_and_psalm.tres",
-		"terrain uses the shared vertex-colour material"
+		material.resource_path,
+		"res://assets/materials/m_terrain_ground.tres",
+		"terrain uses its vertex-colour + snow shader material (Arch Guide 4.7)"
+	)
+	assert_true(material is ShaderMaterial, "snow coverage is a shader parameter")
+
+
+func test_terrain_snow_follows_the_season() -> void:
+	var renderer: Node3D = _find("TerrainRenderer") as Node3D
+	var material := (renderer.find_child("Chunk_0_0", true, false) as MeshInstance3D).material_override
+
+	# before_each pins the clock to midsummer: no snow.
+	assert_almost_eq(
+		float(material.get_shader_parameter("snow_amount")), 0.0, 0.001, "no snow in high summer"
+	)
+
+	# Roll the clock to deep winter and let the day-passed handler run.
+	SimClock.deserialize({"abs_minute": (20 - 75 + 365) * 1440.0, "speed_index": 0})
+	renderer.call("_apply_season")
+	assert_gt(
+		float(material.get_shader_parameter("snow_amount")), 0.6, "the valley is under snow in January"
 	)
 
 
