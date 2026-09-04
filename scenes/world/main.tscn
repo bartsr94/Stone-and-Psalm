@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/environment/valley_environment.tscn" id="1_f8fyy"]
 [ext_resource type="Script" path="res://scripts/view/terrain_renderer.gd" id="2_wbupf"]
 [ext_resource type="Script" path="res://scripts/view/camera_rig.gd" id="3_7tdlr"]
+[ext_resource type="Script" path="res://scripts/view/vegetation_renderer.gd" id="4_veg"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -10,6 +11,9 @@
 
 [node name="TerrainRenderer" type="Node3D" parent="." unique_id=1747990255]
 script = ExtResource("2_wbupf")
+
+[node name="VegetationRenderer" type="Node3D" parent="." unique_id=1747990256]
+script = ExtResource("4_veg")
 
 [node name="CameraRig" type="Node3D" parent="." unique_id=1502320612]
 script = ExtResource("3_7tdlr")

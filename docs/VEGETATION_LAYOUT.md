@@ -2,8 +2,8 @@
 
 ## Purpose
 
-`VegetationLayout` is the pure placement contract for Phase 1.6. It answers whether one cell gets
-one visual vegetation candidate; the view layer later turns those decisions into
+`VegetationLayout` is the pure placement contract for Phase 1.6. It answers whether one sampled
+terrain cell gets one visual vegetation candidate; the view layer later turns those decisions into
 `MultiMeshInstance3D` transforms. It owns no terrain state, scene nodes, meshes, or save data.
 
 ## Rules
@@ -28,6 +28,13 @@ iteration order. Identical inputs must produce identical output across rebuilds 
 
 The category salt is part of the layout contract. It keeps trees, scrub, and rocks from sharing
 the same random pattern while preserving repeatability.
+
+## Renderer sampling
+
+The renderer samples a coarse, category-specific cell stride from `data/vegetation.json` rather
+than attempting one tree per cell. This keeps the initial low-poly population legible and bounded
+while preserving the same coordinate-hash behaviour. Scale, rotation, and within-cell jitter are
+also derived from the seed, but are view transforms and are not part of the authoritative layout.
 
 ## Deliberate boundaries
 

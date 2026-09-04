@@ -1,0 +1,30 @@
+{
+  "_comment": "Visual vegetation settings. Placement is derived from terrain data and the fixed seed; these values tune sampling, eligibility, and the deliberately low-poly presentation.",
+
+  "founding_valley": {
+    "seed": 20260904,
+    "tree_sample_stride_cells": 3,
+    "scrub_sample_stride_cells": 2,
+    "rock_sample_stride_cells": 3,
+    "tree_max_slope_degrees": 28.0,
+    "tree_max_elevation_m": 46.0,
+    "scrub_max_slope_degrees": 40.0,
+    "rock_density": 0.18,
+
+    "tree": {
+      "scale_min": 0.82,
+      "scale_max": 1.18,
+      "jitter_fraction": 0.72
+    },
+    "scrub": {
+      "scale_min": 0.72,
+      "scale_max": 1.18,
+      "jitter_fraction": 0.72
+    },
+    "rock": {
+      "scale_min": 0.72,
+      "scale_max": 1.28,
+      "jitter_fraction": 0.72
+    }
+  }
+}

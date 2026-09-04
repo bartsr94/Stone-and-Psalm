@@ -142,6 +142,22 @@ func test_terrain_renderer_has_a_derived_river_surface() -> void:
 	)
 
 
+func test_vegetation_renderer_has_three_batched_categories() -> void:
+	var renderer: Node3D = _find("VegetationRenderer") as Node3D
+	assert_not_null(renderer, "the vegetation renderer is instanced")
+	for category in ["Trees", "Scrub", "Rocks"]:
+		var instances: MultiMeshInstance3D = renderer.find_child(category, true, false) as MultiMeshInstance3D
+		assert_not_null(instances, "%s MultiMesh exists" % category)
+		assert_not_null(instances.multimesh, "%s has a MultiMesh" % category)
+		assert_not_null(instances.multimesh.mesh, "%s has a generated mesh" % category)
+		assert_gt(instances.multimesh.instance_count, 0, "%s has visible instances" % category)
+		assert_eq(
+			(instances.material_override as Material).resource_path,
+			"res://assets/materials/m_stone_and_psalm.tres",
+			"%s uses the shared material" % category
+		)
+
+
 func test_terrain_dimensions_match_the_founding_preset() -> void:
 	assert_eq(Terrain.cells_across(), 192, "the founding valley is 192 cells across")
 	assert_eq(Terrain.chunk_cells(), 32, "terrain chunks are 32 cells across")
