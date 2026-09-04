@@ -37,6 +37,15 @@
     "snow_line_lapse_m": 34.0
   },
 
+  "agents": {
+    "_comment": "Phase 3 agent movement. The sim moves a person up to move_cells_per_substep grid cells along their path each 10-sim-minute substep; the view interpolates between. This is deliberately a slow, watchable pace for the one-monk demo rather than a realistic 5 km/h — real speeds and road bonuses are Phase 4. view_walk_speed_mps and view_lerp_rate are presentation-only.",
+    "move_cells_per_substep": 22,
+    "view_walk_speed_mps": 1.5,
+    "view_lerp_rate": 3.5,
+    "walk_bob_height_m": 0.06,
+    "walk_bob_hz": 2.1
+  },
+
   "pathfinding": {
     "_comment": "A* over the terrain grid (scripts/sim/pathfinder.gd, autoloads/terrain.gd). max_walk_slope_deg is the grade a person will not cross on foot — steeper cells are impassable, which is what keeps monks in the dale and off the crags. slope_cost_weight scales how much a walkable slope still slows them: cost is multiplied by (1 + weight * slope_radians).",
     "max_walk_slope_deg": 33.0,
