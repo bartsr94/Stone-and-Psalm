@@ -145,9 +145,9 @@ func test_terrain_renderer_has_a_derived_river_surface() -> void:
 func test_vegetation_renderer_has_batched_categories() -> void:
 	var renderer: Node3D = _find("VegetationRenderer") as Node3D
 	assert_not_null(renderer, "the vegetation renderer is instanced")
-	# Trees, Scrub and Rocks are always populated in the founding valley; Pines share the
-	# tree placement set split by elevation, so the batch exists but may be empty.
-	for category in ["Trees", "Pines", "Scrub", "Rocks"]:
+	# Trees, Scrub, Rocks, and the authored woodland/bank accents are each separate batches. Pines
+	# share the tree placement set split by elevation, so that batch may legitimately be empty.
+	for category in ["Trees", "Pines", "Scrub", "Rocks", "Stumps", "FallenLogs", "Ferns", "Reeds"]:
 		var instances: MultiMeshInstance3D = renderer.find_child(category, true, false) as MultiMeshInstance3D
 		assert_not_null(instances, "%s MultiMesh exists" % category)
 		assert_not_null(instances.multimesh, "%s has a MultiMesh" % category)
@@ -157,7 +157,7 @@ func test_vegetation_renderer_has_batched_categories() -> void:
 			"res://assets/materials/m_stone_and_psalm.tres",
 			"%s uses the shared material" % category
 		)
-	for populated in ["Trees", "Scrub", "Rocks"]:
+	for populated in ["Trees", "Scrub", "Rocks", "Stumps", "FallenLogs", "Ferns", "Reeds"]:
 		var instances: MultiMeshInstance3D = renderer.find_child(populated, true, false) as MultiMeshInstance3D
 		assert_gt(instances.multimesh.instance_count, 0, "%s has visible instances" % populated)
 

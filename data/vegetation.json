@@ -5,7 +5,11 @@
     "tree_broadleaf": "res://assets/models/prop_tree_broadleaf.glb",
     "tree_pine": "res://assets/models/prop_tree_pine.glb",
     "scrub": "res://assets/models/prop_gorse.glb",
-    "rock": "res://assets/models/prop_rock_boulder.glb"
+    "rock": "res://assets/models/prop_rock_boulder.glb",
+    "stump": "res://assets/models/prop_stump.glb",
+    "fallen_log": "res://assets/models/prop_fallen_log.glb",
+    "fern": "res://assets/models/prop_fern_clump.glb",
+    "reeds": "res://assets/models/prop_river_reeds.glb"
   },
 
   "founding_valley": {
@@ -13,11 +17,17 @@
     "tree_sample_stride_cells": 3,
     "scrub_sample_stride_cells": 2,
     "rock_sample_stride_cells": 3,
+    "understory_sample_stride_cells": 4,
+    "reeds_sample_stride_cells": 2,
     "tree_max_slope_degrees": 28.0,
     "tree_max_elevation_m": 46.0,
     "pine_min_elevation_m": 33.0,
     "scrub_max_slope_degrees": 40.0,
     "rock_density": 0.18,
+    "stump_density": 0.08,
+    "fallen_log_density": 0.05,
+    "fern_density": 0.28,
+    "reed_density": 0.42,
 
     "tree": {
       "scale_min": 0.82,
@@ -33,6 +43,26 @@
       "scale_min": 0.72,
       "scale_max": 1.28,
       "jitter_fraction": 0.72
+    },
+    "stump": {
+      "scale_min": 0.78,
+      "scale_max": 1.12,
+      "jitter_fraction": 0.68
+    },
+    "fallen_log": {
+      "scale_min": 0.82,
+      "scale_max": 1.16,
+      "jitter_fraction": 0.68
+    },
+    "fern": {
+      "scale_min": 0.72,
+      "scale_max": 1.18,
+      "jitter_fraction": 0.78
+    },
+    "reeds": {
+      "scale_min": 0.78,
+      "scale_max": 1.18,
+      "jitter_fraction": 0.55
     }
   }
 }

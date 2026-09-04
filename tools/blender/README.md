@@ -30,6 +30,12 @@ stray material, stray light or camera, triangle budget overrun.
 Only re-exports `.blend` files newer than their `.glb`. Add `--force` after the paths to
 re-export everything.
 
+## Create the small vegetation props
+
+The reproducible low-poly source for the supporting valley props lives in
+`create_vegetation_props.py`. It creates `prop_stump`, `prop_fallen_log`, `prop_fern_clump`, and
+`prop_river_reeds` in `assets/blend`; run the validator and exporter afterwards.
+
 ## Repair a file's material / colour attribute
 
 ```powershell

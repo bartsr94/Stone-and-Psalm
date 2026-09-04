@@ -12,6 +12,10 @@ const MATERIAL_PATH := "res://assets/materials/m_stone_and_psalm.tres"
 const TREE_POSITION_SALT: int = 0x2B992DD1
 const SCRUB_POSITION_SALT: int = 0x4C957F2D
 const ROCK_POSITION_SALT: int = 0x7A3E91B7
+const STUMP_POSITION_SALT: int = 0x18C7A4D3
+const FALLEN_LOG_POSITION_SALT: int = 0x39D21B65
+const FERN_POSITION_SALT: int = 0x52A86EF1
+const REEDS_POSITION_SALT: int = 0x6F14C2A7
 
 var _settings: Dictionary = {}
 var _models: Dictionary = {}
@@ -44,6 +48,10 @@ func _populate() -> void:
 	var pine_transforms: Array[Transform3D] = []
 	var scrub_transforms: Array[Transform3D] = []
 	var rock_transforms: Array[Transform3D] = []
+	var stump_transforms: Array[Transform3D] = []
+	var fallen_log_transforms: Array[Transform3D] = []
+	var fern_transforms: Array[Transform3D] = []
+	var reeds_transforms: Array[Transform3D] = []
 	var cells_across: int = Terrain.cells_across()
 	var seed: int = int(_settings["seed"])
 	var tree_slope: float = deg_to_rad(float(_settings["tree_max_slope_degrees"]))
@@ -51,10 +59,16 @@ func _populate() -> void:
 	var tree_stride: int = int(_settings["tree_sample_stride_cells"])
 	var scrub_stride: int = int(_settings["scrub_sample_stride_cells"])
 	var rock_stride: int = int(_settings["rock_sample_stride_cells"])
+	var understory_stride: int = int(_settings["understory_sample_stride_cells"])
+	var reeds_stride: int = int(_settings["reeds_sample_stride_cells"])
 	var pine_min_elevation: float = float(_settings["pine_min_elevation_m"])
 	var tree_settings: Dictionary = _settings["tree"]
 	var scrub_settings: Dictionary = _settings["scrub"]
 	var rock_settings: Dictionary = _settings["rock"]
+	var stump_settings: Dictionary = _settings["stump"]
+	var fallen_log_settings: Dictionary = _settings["fallen_log"]
+	var fern_settings: Dictionary = _settings["fern"]
+	var reeds_settings: Dictionary = _settings["reeds"]
 
 	for y in range(0, cells_across, tree_stride):
 		for x in range(0, cells_across, tree_stride):
@@ -78,10 +92,57 @@ func _populate() -> void:
 			if placement == VegetationLayout.Placement.ROCK:
 				rock_transforms.append(_transform_for_cell(x, y, seed, rock_settings, ROCK_POSITION_SALT))
 
+	# These are view-only understory accents. They use the same stable coordinate hash as the
+	# primary layout, but do not change its single-candidate TREE/SCRUB/ROCK contract.
+	for y in range(0, cells_across, understory_stride):
+		for x in range(0, cells_across, understory_stride):
+			if not _woodland_eligible(x, y, tree_slope):
+				continue
+			var understory_value := VegetationLayout.cell_value(seed, x, y, STUMP_POSITION_SALT)
+			if understory_value < float(_settings["stump_density"]):
+				stump_transforms.append(_transform_for_cell(x, y, seed, stump_settings, STUMP_POSITION_SALT))
+			elif understory_value < float(_settings["stump_density"]) + float(_settings["fallen_log_density"]):
+				fallen_log_transforms.append(_transform_for_cell(
+					x, y, seed, fallen_log_settings, FALLEN_LOG_POSITION_SALT
+				))
+			if VegetationLayout.should_place(
+				float(_settings["fern_density"]), seed, x, y, FERN_POSITION_SALT
+			):
+				fern_transforms.append(_transform_for_cell(x, y, seed, fern_settings, FERN_POSITION_SALT))
+
+	# Reeds sit on dry cells immediately beside the river, keeping their feet on the bank rather
+	# than in the water surface. The neighbour check makes this robust to a meandering channel.
+	for y in range(0, cells_across, reeds_stride):
+		for x in range(0, cells_across, reeds_stride):
+			if not _near_river(x, y) or Terrain.slope_radians_at(x, y) > scrub_slope:
+				continue
+			if VegetationLayout.should_place(float(_settings["reed_density"]), seed, x, y, REEDS_POSITION_SALT):
+				reeds_transforms.append(_transform_for_cell(x, y, seed, reeds_settings, REEDS_POSITION_SALT))
+
 	add_child(_make_multimesh_instance("Trees", _prop_mesh("tree_broadleaf"), broadleaf_transforms))
 	add_child(_make_multimesh_instance("Pines", _prop_mesh("tree_pine"), pine_transforms))
 	add_child(_make_multimesh_instance("Scrub", _prop_mesh("scrub"), scrub_transforms))
 	add_child(_make_multimesh_instance("Rocks", _prop_mesh("rock"), rock_transforms))
+	add_child(_make_multimesh_instance("Stumps", _prop_mesh("stump"), stump_transforms))
+	add_child(_make_multimesh_instance("FallenLogs", _prop_mesh("fallen_log"), fallen_log_transforms))
+	add_child(_make_multimesh_instance("Ferns", _prop_mesh("fern"), fern_transforms))
+	add_child(_make_multimesh_instance("Reeds", _prop_mesh("reeds"), reeds_transforms))
+
+
+func _woodland_eligible(x: int, y: int, tree_slope: float) -> bool:
+	return (
+		Terrain.terrain_at(x, y) == TerrainTypes.Terrain.WOODLAND
+		and Terrain.water_at(x, y) == TerrainTypes.Water.NONE
+		and Terrain.elevation_at(x, y) <= float(_settings["tree_max_elevation_m"])
+		and Terrain.slope_radians_at(x, y) <= tree_slope
+	)
+
+
+func _near_river(x: int, y: int) -> bool:
+	for offset in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+		if Terrain.water_at(x + offset.x, y + offset.y) == TerrainTypes.Water.RIVER:
+			return true
+	return false
 
 
 func _placement(x: int, y: int, seed: int, tree_slope: float, scrub_slope: float) -> VegetationLayout.Placement:

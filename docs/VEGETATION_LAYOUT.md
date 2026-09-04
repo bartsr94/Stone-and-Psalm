@@ -48,6 +48,12 @@ together. A missing model falls back to a unit box and logs an error rather than
 `pine_min_elevation_m` render as pine, the rest as broadleaf. This is a mesh choice made in the
 view layer — `VegetationLayout` still emits a single `TREE` decision and knows nothing about it.
 
+The supporting authored props are view-only accents: `prop_stump` and `prop_fallen_log` replace a
+small deterministic share of eligible woodland understory candidates, `prop_fern_clump` fills a
+lower-density woodland sample, and `prop_river_reeds` samples dry cells directly beside the
+meandering river. Their paths, densities, strides, and scale ranges live in `data/vegetation.json`;
+they never enter save data or alter the authoritative terrain grid.
+
 ## Deliberate boundaries
 
 - This layer decides placement only. Scale, rotation, mesh choice, and seasonal variants belong to
