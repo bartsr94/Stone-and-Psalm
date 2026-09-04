@@ -8,6 +8,9 @@
 [ext_resource type="Script" path="res://scripts/view/site_status_overlay.gd" id="6_overlay"]
 [ext_resource type="Script" path="res://scripts/view/precipitation.gd" id="7_precip"]
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="8_hud"]
+[ext_resource type="Script" path="res://scripts/view/precinct_renderer.gd" id="9_precinct"]
+[ext_resource type="Script" path="res://scripts/view/monk_view.gd" id="10_monk"]
+[ext_resource type="Script" path="res://scripts/ui/horarium_ring.gd" id="11_horarium"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -31,6 +34,15 @@ size = 48.0
 
 [node name="Precipitation" type="Node3D" parent="." unique_id=1747990259]
 script = ExtResource("7_precip")
+
+[node name="PrecinctRenderer" type="Node3D" parent="." unique_id=1747990261]
+script = ExtResource("9_precinct")
+
+[node name="MonkView" type="Node3D" parent="." unique_id=1747990262]
+script = ExtResource("10_monk")
+
+[node name="HorariumRing" type="CanvasLayer" parent="." unique_id=1747990263]
+script = ExtResource("11_horarium")
 
 [node name="SiteStatusOverlay" type="CanvasLayer" parent="." unique_id=1747990258]
 script = ExtResource("6_overlay")

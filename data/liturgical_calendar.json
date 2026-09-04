@@ -1,0 +1,61 @@
+{
+  "_comment": "Offices, feast ranks and fast days. SIMULATION_SPEC.md §2.4 and §6.2. All minute figures are explicit placeholders meant to be tuned. Ranks, from lowest: ferial (no feast), simplex, duplex, duplex_maius, solemnity. Higher ranks lengthen the offices and, from duplex_maius up, forbid manual labour like a Sunday. Office keys are lowercase; the order tables override the base.",
+
+  "office_durations_min": {
+    "base":        { "vigils": 90, "lauds": 30, "prime": 20, "terce": 15, "sext": 15, "none": 15, "vespers": 30, "compline": 20 },
+    "cistercian":  { "vigils": 75, "lauds": 25, "prime": 15, "terce": 12, "sext": 12, "none": 12, "vespers": 25, "compline": 15 },
+    "benedictine": { "vigils": 90, "lauds": 30, "prime": 20, "terce": 15, "sext": 15, "none": 15, "vespers": 30, "compline": 20 }
+  },
+
+  "additional_offices_min": { "chapter": 30, "morrow_mass": 30, "high_mass": 45 },
+
+  "conversus_workplace_office_min": 10,
+
+  "lectio_min": { "ferial": 180, "lent": 240 },
+
+  "meal_min": { "main": 40, "collation": 20 },
+  "night_sleep_min": 420,
+  "vigils_to_lauds_gap_min": 20,
+
+  "feast_rank_multiplier": { "ferial": 1.0, "simplex": 1.0, "duplex": 1.25, "duplex_maius": 1.5, "solemnity": 2.0 },
+  "labour_forbidden_from_rank": "duplex_maius",
+
+  "fixed_feasts": [
+    { "name": "Circumcision",                 "month": 1,  "day": 1,  "rank": "duplex" },
+    { "name": "Epiphany",                      "month": 1,  "day": 6,  "rank": "solemnity" },
+    { "name": "Candlemas",                     "month": 2,  "day": 2,  "rank": "duplex_maius" },
+    { "name": "St Benedict",                   "month": 3,  "day": 21, "rank": "duplex_maius" },
+    { "name": "Annunciation",                  "month": 3,  "day": 25, "rank": "duplex_maius" },
+    { "name": "SS Philip and James",           "month": 5,  "day": 1,  "rank": "duplex" },
+    { "name": "Nativity of John the Baptist",  "month": 6,  "day": 24, "rank": "duplex_maius" },
+    { "name": "SS Peter and Paul",             "month": 6,  "day": 29, "rank": "duplex_maius" },
+    { "name": "Translation of St Benedict",    "month": 7,  "day": 11, "rank": "duplex" },
+    { "name": "St Mary Magdalene",             "month": 7,  "day": 22, "rank": "duplex" },
+    { "name": "St Peter's Chains",             "month": 8,  "day": 1,  "rank": "simplex" },
+    { "name": "Assumption of the Virgin",      "month": 8,  "day": 15, "rank": "solemnity" },
+    { "name": "Nativity of the Virgin",        "month": 9,  "day": 8,  "rank": "duplex_maius" },
+    { "name": "Holy Cross",                    "month": 9,  "day": 14, "rank": "duplex" },
+    { "name": "St Matthew",                    "month": 9,  "day": 21, "rank": "duplex" },
+    { "name": "Michaelmas",                    "month": 9,  "day": 29, "rank": "duplex_maius" },
+    { "name": "All Saints",                    "month": 11, "day": 1,  "rank": "solemnity" },
+    { "name": "St Andrew",                     "month": 11, "day": 30, "rank": "duplex" },
+    { "name": "St Nicholas",                   "month": 12, "day": 6,  "rank": "simplex" },
+    { "name": "St Thomas the Apostle",         "month": 12, "day": 21, "rank": "duplex" },
+    { "name": "Christmas",                     "month": 12, "day": 25, "rank": "solemnity" },
+    { "name": "St Stephen",                    "month": 12, "day": 26, "rank": "duplex" },
+    { "name": "St John the Evangelist",        "month": 12, "day": 27, "rank": "duplex" }
+  ],
+
+  "moveable_feasts": [
+    { "name": "Ash Wednesday",  "feast": "ASH_WEDNESDAY",  "rank": "duplex" },
+    { "name": "Palm Sunday",    "feast": "PALM_SUNDAY",    "rank": "duplex_maius" },
+    { "name": "Maundy Thursday","feast": "MAUNDY_THURSDAY","rank": "duplex_maius" },
+    { "name": "Good Friday",    "feast": "GOOD_FRIDAY",    "rank": "solemnity" },
+    { "name": "Easter Sunday",  "feast": "EASTER",         "rank": "solemnity" },
+    { "name": "Rogation",       "feast": "ROGATION",       "rank": "duplex" },
+    { "name": "Ascension",      "feast": "ASCENSION",      "rank": "solemnity" },
+    { "name": "Pentecost",      "feast": "PENTECOST",      "rank": "solemnity" },
+    { "name": "Trinity Sunday", "feast": "TRINITY",        "rank": "duplex_maius" },
+    { "name": "Corpus Christi", "feast": "CORPUS_CHRISTI", "rank": "duplex_maius" }
+  ]
+}

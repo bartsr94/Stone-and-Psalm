@@ -158,6 +158,66 @@ func slope_radians_at(x: int, y: int) -> float:
 	return atan(gradient.length())
 
 
+# --- walkability (for the pathfinder) --------------------------------------------------------
+
+## Per-terrain traversal factor: how much slower than open meadow a cell is to cross. Built
+## cells are cheapest (a yard or a road). Rock is nearly a wall. Read once and cached.
+const _TERRAIN_MOVE_FACTOR := {
+	TerrainTypes.Terrain.MEADOW: 1.0,
+	TerrainTypes.Terrain.WOODLAND: 1.15,
+	TerrainTypes.Terrain.MOOR: 1.35,
+	TerrainTypes.Terrain.ROCK: 1.9,
+	TerrainTypes.Terrain.ARABLE: 1.1,
+	TerrainTypes.Terrain.BUILT: 0.7,
+}
+
+var _max_walk_slope_radians: float = 0.0
+var _slope_cost_weight: float = 0.0
+
+
+## True if a person can stand on and walk through this cell: on the map, not in the river, and
+## not too steep. Ponds and future walls will extend this.
+func is_walkable(x: int, y: int) -> bool:
+	if not is_inside(x, y):
+		return false
+	if water_at(x, y) == TerrainTypes.Water.RIVER:
+		return false
+	return slope_radians_at(x, y) <= _walk_slope_limit()
+
+
+## Vararg-friendly overload taking a cell.
+func is_walkable_cell(cell: Vector2i) -> bool:
+	return is_walkable(cell.x, cell.y)
+
+
+## Cost of a single step between two adjacent cells, in "meadow-metres": the geometric distance
+## scaled by the destination's terrain factor and its steepness. Diagonals cost √2 before
+## scaling. Used as the `step_cost` callable for `Pathfinder`.
+func move_cost(from_cell: Vector2i, to_cell: Vector2i) -> float:
+	var diff := to_cell - from_cell
+	var base: float = _cell_size_m * (Pathfinder._SQRT2 if diff.x != 0 and diff.y != 0 else 1.0)
+	var terrain_factor: float = _TERRAIN_MOVE_FACTOR.get(terrain_at(to_cell.x, to_cell.y), 1.5)
+	var slope_penalty: float = 1.0 + _slope_weight() * slope_radians_at(to_cell.x, to_cell.y)
+	return base * terrain_factor * slope_penalty
+
+
+## The cheapest possible single step, for the pathfinder's heuristic scale.
+func min_step_cost() -> float:
+	return _cell_size_m * _TERRAIN_MOVE_FACTOR[TerrainTypes.Terrain.BUILT]
+
+
+func _walk_slope_limit() -> float:
+	if _max_walk_slope_radians <= 0.0:
+		_max_walk_slope_radians = deg_to_rad(Tuning.get_num("pathfinding.max_walk_slope_deg"))
+	return _max_walk_slope_radians
+
+
+func _slope_weight() -> float:
+	if _slope_cost_weight <= 0.0:
+		_slope_cost_weight = Tuning.get_num("pathfinding.slope_cost_weight")
+	return _slope_cost_weight
+
+
 # --- dirty chunks -----------------------------------------------------------------------------
 
 ## Marks the chunks that must be remeshed after this cell changed. Neighbours are included

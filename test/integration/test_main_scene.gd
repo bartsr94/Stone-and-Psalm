@@ -18,6 +18,7 @@ func before_each() -> void:
 	# The sky cycle orients the sun from the clock, so pin it to a midsummer midday: the sun is
 	# well up, and the environment assertions below do not depend on which test ran last.
 	SimClock.deserialize({"abs_minute": (172 - 75) * 1440.0 + 720.0, "speed_index": 0})
+	Population.found_demo_house()
 	_scene = add_child_autofree(load(MAIN_SCENE).instantiate())
 	# The HUD starts the clock at 1x on ready; hold it still again so time does not drift while
 	# a test inspects the sun.
@@ -141,6 +142,25 @@ func test_hud_shows_the_clock_and_drives_speed() -> void:
 
 	(buttons[0] as Button).pressed.emit()
 	assert_eq(SimClock.speed_index(), 0, "the pause button stopped the clock")
+
+
+func test_precinct_and_monk_are_in_the_scene() -> void:
+	var precinct: Node3D = _find("PrecinctRenderer") as Node3D
+	assert_not_null(precinct, "the greybox precinct renderer is instanced")
+	assert_not_null(precinct.find_child("Church", true, false), "a church box was built")
+	assert_not_null(precinct.find_child("Dormitory", true, false), "a dormitory box was built")
+
+	var monks: Node3D = _find("MonkView") as Node3D
+	assert_not_null(monks, "the monk view is instanced")
+	# It spawns figures in _process; pump a frame.
+	await get_tree().process_frame
+	assert_gt(monks.get_child_count(), 0, "at least one monk figure was spawned")
+
+
+func test_horarium_ring_is_present() -> void:
+	var ring: CanvasLayer = _find("HorariumRing") as CanvasLayer
+	assert_not_null(ring, "the Horarium ring UI is instanced")
+	assert_gt(ring.get_child_count(), 0, "it built its canvas")
 
 
 func test_no_baked_global_illumination() -> void:

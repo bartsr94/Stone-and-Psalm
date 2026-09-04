@@ -18,6 +18,10 @@
 ## depends on that.
 extends Node
 
+## Emitted once per 10-sim-minute substep boundary crossed. Agent movement and task decisions
+## run on this fixed step so they are deterministic and frame-rate independent (Architecture
+## Guide §2.3); the view interpolates between substeps.
+signal substep_passed
 ## Emitted once per whole sim-hour crossed, with the hour of day just entered (0–23).
 signal hour_passed(hour_of_day: int)
 ## Emitted once per midnight crossed, with the day of year just entered (1–365).
@@ -34,6 +38,10 @@ signal speed_changed(speed_index: int)
 enum Season { WINTER, SPRING, SUMMER, AUTUMN }
 
 const MINUTES_PER_HOUR := 60
+const MINUTES_PER_SUBSTEP := 10
+## A single realtime advance never fires more than this many coalesced substeps, so a long
+## frame hitch or a speed change cannot make the agents lurch across the map.
+const MAX_SUBSTEPS_PER_ADVANCE := 24
 
 var _abs_minute: float = 0.0
 var _speed_index: int = 0
@@ -89,6 +97,11 @@ func advance_minutes(sim_minutes: float) -> void:
 		push_warning(
 			"SimClock: advance_minutes jumped more than a year; use advance_days for bulk time"
 		)
+
+	@warning_ignore("integer_division")
+	var substeps: int = after / MINUTES_PER_SUBSTEP - before / MINUTES_PER_SUBSTEP
+	for _i in mini(substeps, MAX_SUBSTEPS_PER_ADVANCE):
+		substep_passed.emit()
 
 	@warning_ignore("integer_division")
 	var crossed_an_hour: bool = after / MINUTES_PER_HOUR != before / MINUTES_PER_HOUR
