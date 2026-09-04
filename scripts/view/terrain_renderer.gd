@@ -18,6 +18,7 @@
 extends Node3D
 
 const MATERIAL_PATH := "res://assets/materials/m_stone_and_psalm.tres"
+const RIVER_MATERIAL_PATH := "res://assets/materials/m_river_water.tres"
 
 ## Ground colour per terrain type. Woodland uses a canopy green for the ground beneath it: seen
 ## from this camera angle the slope reads as wooded even before a single tree is placed.
@@ -32,11 +33,14 @@ const GROUND_COLOURS := {
 const RIVER_BED_COLOUR := "mud"
 
 var _material: Material = null
+var _river_material: Material = null
 var _chunks: Dictionary = {}
 
 
 func _ready() -> void:
 	_material = load(MATERIAL_PATH)
+	_river_material = load(RIVER_MATERIAL_PATH)
+	_build_river_surface()
 	_remesh_dirty()
 
 
@@ -48,6 +52,60 @@ func _process(_delta: float) -> void:
 func _remesh_dirty() -> void:
 	for index in Terrain.take_dirty_chunks():
 		_rebuild_chunk(index)
+
+
+## Builds the visible water surface from the authoritative river cells. Water is deliberately a
+## separate derived mesh: it has no say in terrain data and can be replaced by a more detailed
+## stream representation later without changing saves or pathfinding.
+func _build_river_surface() -> void:
+	var cells_across: int = Terrain.cells_across()
+	var cell_size: float = Terrain.cell_size_m()
+	var half_extent: float = Terrain.world_size_m() * 0.5
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	for y in cells_across:
+		for x in cells_across:
+			if Terrain.water_at(x, y) != TerrainTypes.Water.RIVER:
+				continue
+
+			var first: int = vertices.size()
+			var water_y: float = Terrain.water_level_at(x, y)
+			var left: float = float(x) * cell_size - half_extent
+			var right: float = float(x + 1) * cell_size - half_extent
+			var near: float = float(y) * cell_size - half_extent
+			var far: float = float(y + 1) * cell_size - half_extent
+			vertices.append_array([
+				Vector3(left, water_y, near),
+				Vector3(right, water_y, near),
+				Vector3(left, water_y, far),
+				Vector3(right, water_y, far),
+			])
+			normals.append_array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+			var uv := Vector2(float(x) / float(cells_across), float(y) / float(cells_across))
+			var uv_step := Vector2(1.0 / cells_across, 1.0 / cells_across)
+			uvs.append_array([uv, uv + Vector2(uv_step.x, 0.0), uv + Vector2(0.0, uv_step.y), uv + uv_step])
+			indices.append_array([
+				first, first + 2, first + 1,
+				first + 1, first + 2, first + 3,
+			])
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+
+	var surface := MeshInstance3D.new()
+	surface.name = "RiverSurface"
+	surface.material_override = _river_material
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	surface.mesh = mesh
+	add_child(surface)
 
 
 func _rebuild_chunk(index: int) -> void:

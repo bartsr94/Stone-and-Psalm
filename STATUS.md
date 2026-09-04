@@ -1,16 +1,16 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 47 passing (GUT 9.6.0, headless)
+**Test count:** 56 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 0 — Foundations** ← current, all but task 0.7 done
+**Phase 1 — The Valley** ← current, terrain and river surface are in place
 
-A lit 3D scene renders with a working orthographic camera. Phase 1 — The Valley — is next.
+A lit 3D valley renders with a working orthographic camera. Vegetation and the final lighting pass remain.
 
 ---
 
@@ -54,13 +54,11 @@ A lit 3D scene renders with a working orthographic camera. Phase 1 — The Valle
 
 ---
 
-## WIP checkpoint — Phase 1 terrain, mid-lighting-pass
+## WIP checkpoint — Phase 1 terrain and river, mid-lighting-pass
 
-Session ended mid-Phase-1 to preserve budget. State is committed but **not green**:
-`test_main_scene.gd` has 5 failing assertions because it still checks for Phase 0's
-`Ground`/`GreyboxBuilding` nodes and a 150 m shadow range, both of which Phase 1's
-`main.tscn` replaced with `TerrainRenderer` and a 400 m shadow range. Not a regression —
-just a test file that needs updating to match the new scene, first thing next session.
+The terrain checkpoint is now green: **56 tests pass**. The integration test was updated from
+Phase 0's `Ground`/`GreyboxBuilding` nodes to Phase 1's `TerrainRenderer`, and now resets the
+singleton terrain before each scene test so dirty-chunk assertions do not depend on test order.
 
 What's built and working:
 
@@ -72,8 +70,12 @@ What's built and working:
   **no unit tests written for these yet**, do that before extending them further.
 - `scripts/view/terrain_renderer.gd`: chunked mesh (36 chunks, dirty-chunk remeshing),
   corner-averaged heights and colours so chunk edges and terrain-band boundaries blend.
+- `assets/materials/river_water.gdshader` + `m_river_water.tres`: a derived, cell-batched river
+  surface with animated flow and tuned transparency. It does not own simulation state.
 - `scripts/view/palette.gd`: `Palette.of()` for sRGB (materials/UI) vs `Palette.vertex()`
   for linear (mesh `ARRAY_COLOR`) — **this distinction is load-bearing, not stylistic.**
+- `test/unit/test_valley_shape.gd` and `test/unit/test_terrain_types.gd`: boundary and save-format
+  coverage for the new terrain helpers.
 
 Three real bugs found only by rendering, fixed, worth knowing before touching this again:
 
@@ -87,38 +89,33 @@ Three real bugs found only by rendering, fixed, worth knowing before touching th
    they're not registered at that script's compile time. Reach them via
    `root.get_node_or_null("Terrain")` in throwaway render/diagnostic scripts instead.
 
-**Not yet verified:** whether the valley actually looks good with the sRGB fix and the
-400 m shadow range applied together — the last render (before the interrupt) was queued
-but its output wasn't reviewed. **First thing next session: render `main.tscn` at a wide
-zoom and look at it.** If it's not attractive yet, the fog/lighting numbers from the Phase 0
-decision log (150 m distance, 0.004 density / 512 m length) were tuned for a small box, not
-a 384 m valley — expect to retune them at this larger scale before calling task 1.7 done.
+The wide render has now been reviewed. The valley shape reads and the river follows its meander;
+the current fog and golden-hour lighting are still provisional and should be tuned again once
+trees and rocks give the scene visual anchors.
 
-Not started: 1.3 (this preset arguably already covers "handcrafted heightmap"), 1.4 (river
-shader — currently just a flat mud-coloured band, no water surface at all), 1.5 (uses the
-Phase 0 material path, not yet re-pointed at `m_stone_and_psalm.tres` everywhere), 1.6
-(trees/rocks via MultiMesh — `forest_density` data exists, nothing reads it yet), 1.7
-(lighting pass, see above).
+Not started: 1.6 (trees/rocks via MultiMesh — `forest_density` data exists, nothing reads it yet),
+1.7 (final lighting pass, see above). The preset covers the handcrafted heightmap and 1.4's
+first river-surface implementation is complete.
 
 ---
 
 ## Start here next session
 
-**Phase 0 is complete except task 0.7**, and its exit criteria are met: `Ctrl+F5` opens a lit 3D
-scene with a ground plane, one greybox building, and a working orthographic camera. 47 tests pass
-headless. Screenshot at `docs/screenshots/phase0_camera_rig.png`.
+**Phase 1 is in progress.** `Ctrl+F5` opens a lit 3D valley with a working orthographic camera,
+terrain bands, and a flowing river surface. 56 tests pass headless. The committed screenshot is
+still the Phase 0 baseline at `docs/screenshots/phase0_camera_rig.png`.
 
-Two things before Phase 1:
+Remaining setup and Phase 1 work:
 
 | # | Task | Note |
 |---|---|---|
 | 0.7 | Choose and vendor a greybox kit into `assets/kit/` | **Decision needed** — Kenney medieval/survival (CC0) is the leading candidate. Record the licence in `assets/kit/LICENCE.md`. Not blocking: Phase 0's building is a `BoxMesh`, and nothing needs a kit until real building types arrive in Phase 4 |
+| 1.6 | Add trees, rocks, and scrub via `MultiMeshInstance3D` | `forest_density` is already authored in the terrain grid |
+| 1.7 | Tune the final lighting pass | Revisit fog, sun, SSAO, and SSIL after vegetation is visible |
 | — | Open the project in the editor once | Everything so far was authored headlessly. The editor will rewrite `.tscn`/`.tres` with resource UIDs on first save — expect one noisy diff, and let it happen in its own commit |
 
-**Then Phase 1 — The Valley**, and its exit criterion is a screenshot you actually like. If it
-isn't attractive, iterate there rather than moving on. Start with 1.1/1.2 (`Terrain` autoload and
-chunked mesh generation) but budget real time for 1.7, the lighting pass — Phase 0 already showed
-how much of the look comes from the environment rather than the geometry.
+The Phase 1 exit criterion remains a screenshot you actually like. Iterate on the valley until the
+terrain, water, vegetation, and lighting read as a place before moving to seasons.
 
 ### Screenshots
 
@@ -129,10 +126,6 @@ require. Must run **windowed, not headless** — the dummy renderer produces no 
 & "C:\Users\Bart\Documents\Godot_v4.6.1-stable_win64.exe" --path . `
   -s tools/screenshot.gd -- res://scenes/world/main.tscn res://docs/screenshots/name.png
 ```
-
-**Then Phase 1 is the valley, and its exit criterion is a screenshot you actually like.** If it
-isn't attractive, iterate there rather than moving on — nothing later fixes a valley that looks
-bad.
 
 ### Environment notes
 
