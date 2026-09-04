@@ -42,34 +42,35 @@ Design documentation complete. No Godot project exists yet.
 | — | Project palette | ✅ Done | `data/palette.json`, 42 entries |
 | — | `.mcp.json` (godot + blender) | ✅ Done | Only active in a session run from the project dir |
 | — | Git LFS | ✅ Done | `.gitattributes`; no migration needed — first commit was text only |
-| 0.1 | Create Godot project (4.6.1, Forward+/D3D12) | 🔲 Not started | |
-| 0.2 | Folder scaffold | 🔲 Not started | Architecture Guide §3 |
-| 0.3 | Install GUT 9.6.0, verify headless, pin | 🔲 Not started | **Before the first test.** 9.7.1 fails on 4.6.1 |
+| 0.1 | Create Godot project (4.6.1, Forward+/D3D12) | ✅ Done | `project.godot`; `rendering_device/driver.windows="d3d12"` |
+| 0.2 | Folder scaffold | ✅ Done | Architecture Guide §3 tree created, `.gitkeep`'d where empty |
+| 0.3 | Install GUT 9.6.0, verify headless, pin | ✅ Done | Vendored into `addons/gut/`; 1/1 smoke test passes headless on 4.6.1 |
 | 0.4 | Git init + `.gitignore` | ✅ Done | Repo existed with docs commit; `.gitignore` merged, LFS added after |
 | 0.5 | Fix 3D conventions in code | 🔲 Not started | Architecture Guide §4 |
 | 0.6 | Orthographic camera rig | 🔲 Not started | Most-used code in the game |
 | 0.7 | Vendor greybox kit into `assets/kit/` | 🔲 Not started | Permissive licence; record it |
 | 0.8 | `WorldEnvironment` v0 | 🔲 Not started | |
-| 0.9 | Verify the test command, record it in CLAUDE.md | 🔲 Not started | |
+| 0.9 | Verify the test command, record it in CLAUDE.md | ✅ Done | Command in CLAUDE.md works verbatim; a fresh checkout needs one `--headless --import` pass first (generates GUT's class_name cache) — not needed again after |
 
 ---
 
 ## Start here next session
 
-Docs are complete and the art pipeline is verified. **No Godot project exists yet** — that is the
-next thing to build.
+Docs are complete, the art pipeline is verified, and the Godot project exists: `project.godot`,
+the full folder scaffold, and GUT 9.6.0 pinned and passing headless.
 
-Do these in order (Roadmap Phase 0):
+Remaining, in order (Roadmap Phase 0):
 
 | # | Task | Note |
 |---|---|---|
-| 0.1 | Create the Godot project — 4.6.1, Forward+ / D3D12 | `Godot_v4.6.1-stable_win64.exe` in `Documents\` |
-| 0.2 | Folder scaffold | Architecture Guide §3 |
-| 0.3 | Install GUT **9.6.0**, verify headless, then pin | **Before writing any test.** 9.7.1 fails on 4.6.1 |
 | 0.7 | Choose and vendor a greybox kit into `assets/kit/` | **Decision needed** — Kenney medieval/survival (CC0) is the leading candidate. Record the licence in `assets/kit/LICENCE.md` |
 | 0.5 | Fix the 3D conventions in code | Architecture Guide §4 |
 | 0.6 | Orthographic camera rig — 40° pitch, 90° yaw steps | The most-used code in the game |
 | 0.8 | `WorldEnvironment` v0 — sun, sky, SSAO, fog | Rough is fine; Phase 2 makes it good |
+
+**Once godot-mcp is live in-session** (needs a VS Code restart to pick up `.mcp.json` — see
+Environment notes), 0.6 and 0.8 are the first tasks worth driving through it: opening the editor,
+running the scene, and taking the Phase 1 screenshot.
 
 **Then Phase 1 is the valley, and its exit criterion is a screenshot you actually like.** If it
 isn't attractive, iterate there rather than moving on — nothing later fixes a valley that looks
@@ -221,6 +222,28 @@ unwrapping and texturing. Chosen to skip the single largest time sink in a first
 because a fixed palette produces visual coherence by construction rather than by discipline.
 
 Recorded as a decision because reversing it later means remaking every asset.
+
+### 2026-09-04 — Godot project created, GUT pinned
+
+Tasks 0.1–0.3 and 0.9 done. `project.godot` sets Forward+ / D3D12
+(`rendering_device/driver.windows="d3d12"`, confirmed the correct key by grepping the installed
+4.6.1 binary — Godot's own docs for this setting are thin). The full Architecture Guide §3 folder
+tree exists, `.gitkeep`'d wherever nothing lives yet.
+
+GUT 9.6.0 vendored into `addons/gut/` from the `v9.6.0` source tag (no prebuilt release asset
+exists upstream, only source zip/tarball — pulled `addons/gut/` out of that). `plugin.cfg`
+confirms `version="9.6.0"` exactly. A minimal `test/unit/test_gut_smoke.gd` proved the CLAUDE.md
+test command works verbatim and passes (1/1) headless on 4.6.1.
+
+**One gotcha for a fresh checkout, not yet in CLAUDE.md's test command:** GUT's `class_name`s
+aren't resolved until Godot has imported the project once. A brand-new clone (or this first run)
+needs `godot --headless --import --path .` before the test command; a plain, unqualified error
+("Some GUT class_names have not been imported") is the symptom if this is skipped. Not needed
+again after the first import.
+
+`run/main_scene` is left unset — nothing to run yet. `.godot/` (the import cache) stays untracked
+per `.gitignore`; `*.import` files for the assets already in the repo (GUT's fonts/icons) are
+committed as expected in Godot 4.
 
 ---
 

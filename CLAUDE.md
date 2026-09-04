@@ -48,12 +48,16 @@ Start-Process -FilePath "C:\Users\Bart\Documents\Godot_v4.6.1-stable_win64.exe" 
   -Wait -NoNewWindow; Get-Content "test_results.txt"
 ```
 
-Two gotchas already paid for once elsewhere in this portfolio:
+Three gotchas — two paid for once elsewhere in this portfolio, one paid for here:
 
 - **Never pipe Godot headless output with `*>&1`** — it hangs in PowerShell (vagrant-star).
   Use `-RedirectStandardOutput`.
 - **GUT 9.6.0, not 9.7.1.** 9.6.0 is verified working on 4.6.1 (Star Routes, 134 tests). 9.7.1
   failed against 4.6.1 in Barbarian Prince.
+- **A fresh checkout needs one import pass before the first test run**: `godot --headless
+  --import --path .`. Without it GUT's `class_name`s aren't resolved and every run fails with
+  "Some GUT class_names have not been imported." Only needed once per clone — `.godot/` then
+  holds the cache and stays untracked.
 
 ---
 
