@@ -37,6 +37,12 @@
     "snow_line_lapse_m": 34.0
   },
 
+  "pathfinding": {
+    "_comment": "A* over the terrain grid (scripts/sim/pathfinder.gd, autoloads/terrain.gd). max_walk_slope_deg is the grade a person will not cross on foot — steeper cells are impassable, which is what keeps monks in the dale and off the crags. slope_cost_weight scales how much a walkable slope still slows them: cost is multiplied by (1 + weight * slope_radians).",
+    "max_walk_slope_deg": 33.0,
+    "slope_cost_weight": 1.6
+  },
+
   "weather": {
     "_comment": "Phase 2.7 daily weather. Authoritative and deterministic from an injected Dice (docs/ARCHITECTURE_GUIDE.md §7). Seasonal mean temperature in °C and daily precipitation probability are lerped from the same season curve; day-to-day variation is bounded noise, then a 3-day trailing smooth. freeze_point_c gates frost; hard_frost_c gates the construction frost gate later.",
     "rng_seed": 776112,
