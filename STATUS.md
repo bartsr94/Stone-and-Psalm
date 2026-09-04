@@ -1,14 +1,29 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 184 passing (GUT 9.6.0, headless)
+**Test count:** 235 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 3 — One Monk Walking** ← complete on branch `phase-3-one-monk-walking` (merged to `main`)
+**Phase 4 — Build and Haul** ← core simulation built and tested on branch
+`phase-4-build-and-haul`; the placement UI, worker-assignment UI, roads and true
+partial-construction models are not, so the phase is not closed out.
+
+Goods, building types, placement, the construction state machine, the frost gate, local
+building inventories (no global pool), hauling, and task assignment are all built, headless, and
+tested — `test_goods.gd`, `test_construction.gd`, `test_buildings.gd`, `test_hauling.gd`,
+`test_labour.gd`, and the day-in-the-life `test_build_and_haul.gd` (two conversi haul timber and
+nails from a stocked stockpile and raise a granary; a mortar building stalls in a hard frost and
+resumes once it passes). A greybox `BuildingsRenderer` draws every placed building — rising from
+a staked plot to full height as `build_progress` climbs, roofed once `COMPLETE` — and a carried
+sack now shows on a hauler's back. `docs/screenshots/phase4_construction_site.png` is the demo
+site three simulated days in: the stockpile full, the granary about half built, two conversi
+still working it. **Start here next session** below has what is still open.
+
+**Phase 3 — One Monk Walking** — complete on branch `phase-3-one-monk-walking` (merged to `main`)
 
 One Cistercian choir monk lives the Divine Office: he sleeps in the greybox dormitory, rises
 for Vigils, walks to the church for each of the eight offices, works the assart between them,
@@ -36,7 +51,7 @@ items, not Phase 2 regressions.
 |---|---|---|
 | M1 — It's a place | 0–2 | 🟡 Phases 0 done, 1 built (exit gate unsigned), 2 done |
 | M2 — It's alive | 3 | 🟢 Built — a monk lives the Office; the Horarium shows why it matters |
-| M3 — It's a settlement | 4–5 | 🔲 Not started |
+| M3 — It's a settlement | 4–5 | 🟡 Phase 4 sim built and tested; placement/worker UI, roads, staged models still open |
 | M4 — It's a monastery ★ vertical slice | 6 | 🔲 Not started |
 | M5 — It's a game | 7–10 | 🔲 Not started |
 | M6 — It's finished | 11–12 | 🔲 Not started |
@@ -118,8 +133,66 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ## Start here next session
 
-**Phase 3 is complete on `phase-3-one-monk-walking` (merged to `main`).** 176 tests pass. The
-new pieces:
+**Phase 4's simulation core is built and tested on `phase-4-build-and-haul`, not yet merged.**
+235 tests pass. The new pieces:
+
+| # | Piece | Where |
+|---|---|---|
+| 4.1 | `Goods` + `data/goods.json` (every good §8 lists); `Buildings` + `data/buildings.json` (8 types: 3 production, 5 storage — the rest of §7.2's ~30 are added as later phases' chains need them) | `autoloads/goods.gd`, `autoloads/buildings.gd` |
+| — | `Building` record — footprint, construction state, `delivered_materials`, local `inventory` | `scripts/sim/building.gd` |
+| 4.2 | Placement: `Buildings.place_building`/`can_place`, grid snap (cell-integer anchors), rotation (footprint axis swap), overlap checking. **No ghost-preview/mouse UI yet** — placement is a headless API only | `autoloads/buildings.gd` |
+| 4.3 | Construction state machine + the frost gate | `scripts/sim/construction.gd`, `autoloads/buildings.gd` |
+| 4.4 | Local building inventories, capacity-limited. **No global pool** | `autoloads/buildings.gd` |
+| 4.5 | The 5 storage types from §7.2's table, capacities as specified | `data/buildings.json` |
+| 4.6 | `Hauling` autoload — the task queue, pickup/dropoff between two buildings' inventories | `autoloads/hauling.gd` |
+| 4.7 | Carried goods visible: a sack shows on a hauler's back while `carrying_qty > 0` | `scripts/view/monk_view.gd` |
+| 4.8 | `Labour` autoload — haul-task-or-construction-labour assignment, stateless | `autoloads/labour.gd` |
+| — | `Population` extended: `current_task`, the `HAULING`/`BUILDING` activities, `_resolve_work` | `autoloads/population.gd`, `scripts/sim/person.gd` |
+| — | `BuildingsRenderer` — every building as a greybox rising from a staked plot to full height as `build_progress` climbs, roofed once `COMPLETE` | `scripts/view/buildings_renderer.gd` |
+| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
+
+**Not built yet — genuinely open, not just untested:**
+
+| # | Task | Note |
+|---|---|---|
+| 4.2 | Ghost-preview placement UI (mouse → terrain cell, rotate, confirm) | The headless API (`can_place`/`place_building`) is ready for a UI to call |
+| 4.9 | Worker-count-per-building + laborer-pool UI | Everyone idle is the laborer pool today; nobody can be pinned to one site |
+| 4.10 | Roads and their haul-speed bonus | `hauling.loaded_speed_factor`/`snow_speed_factor` exist; the road multiplier does not yet |
+| 4.11 | Real partial-construction models | The renderer's rising box is an honest placeholder, not a staged model |
+| — | Camera framing for the demo site | The demo (a stockpile + a granary beside the assart clearing) sits at the edge of the default camera framing — a Phase 1 composition item, same class of issue as Phase 3's "badly framed by the map-centred camera start" |
+
+**Two bugs worth knowing before extending this further, both invisible until an actual multi-day
+run was tried:**
+
+1. **`SimClock.advance_days` is the wrong tool for a test that needs Population's per-substep
+   decisions to actually run every day.** Its own doc comment only promises `day_passed` fires
+   for every day; `substep_passed` is capped at `MAX_SUBSTEPS_PER_ADVANCE` (24) **per call**, so
+   a single `advance_days(1)` (one `advance_minutes(1440)` call) only ever processes 24 of a
+   day's 144 substeps. `test_headless_years.gd`'s loose assertions ("the monk is still sane")
+   were never tight enough to expose this; `test_build_and_haul.gd` needed exact task completion
+   over dozens of days and got it wrong twice before landing on stepping `advance_minutes(10.0)`
+   144 times per simulated day instead. `advance_days` is still the right call for a coarse
+   calendar/weather soak — just not for asserting what an agent did on a given day.
+2. **`Buildings.seed_building` must backfill `delivered_materials` to match the type's build
+   cost, not leave it empty.** `materials_needed()` has no state-based "this is already built"
+   shortcut — it is purely `build_materials − delivered_materials` — so a seeded/founding
+   building that skips real delivery still reads as owing its own construction cost forever,
+   and `Hauling.rebuild_tasks` will queue a haul task moving a stocked building's own goods to
+   itself. Fixed by having `seed_building` mark every required good fully delivered.
+
+One more, smaller: `Population.add_person`'s new demo callers can start a person exactly on the
+cell their first real decision will also want (a hauler seeded at their own building's door).
+`target_cell` used to be primed to the spawn cell, so `_decide`'s "destination unchanged, nothing
+to do" fast path could fire on the very first substep and the person would never be settled into
+a real activity. Fixed by priming `target_cell` to `Vector2i(-1, -1)`, a sentinel no real cell
+can equal.
+
+---
+
+## Superseded — Phase 3 handoff
+
+**Phase 3 was complete on `phase-3-one-monk-walking` (merged to `main`).** 176 tests pass. The
+pieces built:
 
 | # | Piece | Where |
 |---|---|---|
@@ -141,10 +214,6 @@ Phase 3 exit criterion ("a clip of a summer and a winter day side by side"): the
 screenshots stand in for it; a real clip needs `tools/timelapse.gd` run windowed (produces a
 PNG sequence to assemble with ffmpeg). The monk figure and building boxes are greybox and
 badly framed by the map-centred camera start — a Phase 1 composition item, not a Phase 3 one.
-
-Next: **Phase 4 — Build and Haul** (`goods.json`, `buildings.json`, placement, the frost gate,
-local inventories, hauling, the labour job queue). `Liturgy.day_plan` already yields the work
-blocks the `Labour` autoload will consume.
 
 ---
 
@@ -464,6 +533,65 @@ Loading an instant (a save, or the screenshot/timelapse tools jumping to a date)
 everything that only updates on a calendar edge — `Weather`, `sky_cycle`, the seasonal
 materials. Without it, the first screenshot at "14 July" still showed the January weather the
 autoload rolled at startup.
+
+### 2026-09-04 — Phase 4: `advance_days`'s substep cap, a seeded building's phantom debt, and a spawn-cell collision
+
+Three bugs, none visible until `test_build_and_haul.gd` actually tried to run a multi-day
+scenario and check its outcome, rather than just running headless without crashing:
+
+1. **`SimClock.advance_days` under-runs `substep_passed` for exactly the case a Phase 4 test
+   needs.** Its doc comment promises `day_passed` every day; it says nothing about
+   `substep_passed`, which is capped at `MAX_SUBSTEPS_PER_ADVANCE` (24) **per call** — a
+   real-time-hitch guard, not a bulk-advance one. A single `advance_days(1)` therefore only
+   processes 24 of a day's 144 substeps, so `Population`'s per-substep decisions — including
+   every haul pickup/dropoff and labour contribution — only run for a sixth of each day
+   advanced this way. `test_headless_years.gd`'s loose assertions never noticed. Fixed by
+   stepping `SimClock.advance_minutes(10.0)` 144 times per simulated day in the new test instead
+   of calling `advance_days`; that soak test is left as-is, since a coarse calendar/weather
+   check is exactly what it wants.
+2. **`Buildings.seed_building` left `delivered_materials` empty**, so a seeded (already-COMPLETE)
+   building still read as owing its own build cost forever — `materials_needed()` has no
+   construction-state shortcut, only `build_materials − delivered_materials`. `Hauling` would
+   then queue a task hauling a stocked building's own goods to itself. Fixed by having
+   `seed_building` mark every required good fully delivered, the same as a real delivery would.
+3. **A person seeded exactly on the cell their first decision would also want** (a hauler placed
+   at their own building's door) never got assigned an activity: `target_cell` used to be primed
+   to the spawn cell, so `_decide`'s "destination unchanged, nothing to do" fast path fired on
+   the very first substep, before any real decision had run once. Fixed by priming a new
+   person's `target_cell` to `Vector2i(-1, -1)`, which no real grid cell can equal.
+
+Also: `SimClock.deserialize({"abs_minute": (day - start_day_of_year) * 1440.0, ...})`, the
+pattern every existing test used to jump to a chosen day, silently breaks for a target day
+*before* `time.start_day_of_year` (75) — the subtraction goes negative, and GDScript's `%`
+on a negative dividend does not wrap the way `minute_of_day()`/`day_of_year()` assume. Deep
+winter (day ~20) needs the wraparound form: `((day - start_day_of_year + 365) % 365) * 1440.0`.
+
+### 2026-09-04 — Phase 4 built: goods, buildings, hauling, labour, no global pool
+
+`data/goods.json` covers every good `SIMULATION_SPEC.md` §8 lists; `data/buildings.json` covers
+8 of §7.2's ~30 building types (5 storage exactly as specified, 3 production types enough to
+exercise the timber/stone chain the exit criteria describe) — the rest are a JSON entry each,
+added as the phases that need their recipes arrive. Construction costs and labour-hours for
+every type but the storage capacities are placeholder, sized to feel roughly proportionate to
+footprint and worker slots, and recorded as such in the data file's own comment — the same
+posture as the church stages' numbers in `SIMULATION_SPEC.md` §9.1.
+
+The frost gate reads `Weather.temperature_c()` against a tuned threshold rather than a hardcoded
+calendar window, so it falls out of the seasonal model the way the rest of the sim does rather
+than being pinned to a date — `SIMULATION_SPEC.md` §11 states the rule as a temperature test and
+offers the date window only as an illustrative placeholder.
+
+`Hauling` and `Labour` are deliberately split: `Hauling` owns the haul task queue and is the only
+thing that moves a good between two `Building.inventory` dicts (`SIMULATION_SPEC.md` §10's "no
+global pool" enforced in one place); `Labour` is a stateless assignment policy over `Hauling`'s
+queue and `Buildings`' construction states, since neither a job queue nor a skill system exists
+yet for it to own more than that. `Population` gained `current_task` on `Person` and two new
+terminal activities (`HAULING`, `BUILDING`), and `_resolve_work` falls back to the Phase 3
+greybox clearing whenever `Labour` has nothing queued — which is what keeps the one-monk demo's
+existing tests passing unchanged with no buildings placed.
+
+Not attempted this pass: the placement UI (4.2's ghost preview), worker-assignment UI (4.9),
+roads (4.10), and real partial-construction models (4.11) — see "Start here next session".
 
 ---
 

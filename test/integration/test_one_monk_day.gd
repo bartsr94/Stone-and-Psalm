@@ -9,6 +9,8 @@ var _monk_id: int
 func before_each() -> void:
 	SimClock.deserialize({"abs_minute": 0.0, "speed_index": 0})
 	Terrain.build_preset("founding_valley")
+	Buildings.clear()
+	Hauling.clear()
 	Population.clear()
 	_monk_id = Population.add_person(
 		"Brother Ælred", Monastic.Class.CHOIR_MONK, Monastic.Order.CISTERCIAN, Population.dormitory_door()

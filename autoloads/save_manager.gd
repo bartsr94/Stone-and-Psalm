@@ -19,8 +19,9 @@ func _ready() -> void:
 
 
 ## The whole game state as one Dictionary, systems always visited in the same order so the same
-## state always produces the same document. `Tuning` is pure config and is not saved; `Terrain`
-## rebuilds from its preset (only later cell deltas would need storing, once editing exists).
+## state always produces the same document. `Tuning` and `Goods` are pure config and are not
+## saved; `Terrain` rebuilds from its preset (only later cell deltas would need storing, once
+## editing exists).
 func capture() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
@@ -29,6 +30,8 @@ func capture() -> Dictionary:
 			"Weather": Weather.serialize(),
 			"Liturgy": Liturgy.serialize(),
 			"Population": Population.serialize(),
+			"Buildings": Buildings.serialize(),
+			"Hauling": Hauling.serialize(),
 		},
 	}
 
@@ -51,6 +54,10 @@ func restore(state: Dictionary) -> bool:
 		Liturgy.deserialize(systems["Liturgy"])
 	if systems.has("Population"):
 		Population.deserialize(systems["Population"])
+	if systems.has("Buildings"):
+		Buildings.deserialize(systems["Buildings"])
+	if systems.has("Hauling"):
+		Hauling.deserialize(systems["Hauling"])
 	return true
 
 

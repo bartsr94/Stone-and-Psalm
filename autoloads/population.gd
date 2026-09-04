@@ -4,11 +4,14 @@
 ## the fixed 10-sim-minute step — so the same seed and calendar always produce the same
 ## movements; the view only interpolates between substeps.
 ##
-## Phase 3 is one monk. Each substep, for every person in id order (never dictionary order —
-## Architecture Guide §7): look up the day's horarium from `Liturgy`, decide whether this
-## minute belongs to an office, a work block, or sleep, walk them toward the right building,
-## and settle them when they arrive. The precinct is the greybox church, dormitory and work
-## site in `data/precinct.json`.
+## Phase 3 is one monk; Phase 4 adds haulers and builders. Each substep, for every person in id
+## order (never dictionary order — Architecture Guide §7): look up the day's horarium from
+## `Liturgy`, decide whether this minute belongs to an office, a work block, or sleep. In a work
+## block, `_resolve_work` asks `Labour` for a haul or construction task and walks the person
+## toward it — falling back to the Phase 3 greybox clearing in `data/precinct.json` when there is
+## nothing queued, which is what keeps the one-monk demo unchanged with no buildings placed.
+## Arrival executes the task (`_execute_task`): a labour contribution to `Buildings`, or a
+## pickup/dropoff through `Hauling`.
 extends Node
 
 const PRECINCT_PATH := "res://data/precinct.json"
@@ -22,11 +25,16 @@ var _work_site: Vector2i = Vector2i.ZERO
 var _precinct: Dictionary = {}
 
 var _move_cells_per_substep: int = 22
+var _loaded_speed_factor: float = 0.7
+var _snow_speed_factor: float = 0.6
 var _plan_cache: Dictionary = {}       ## "day|class|order" -> day_plan
+var _pending_settle: Dictionary = {}   ## person id -> Activity; scratch, valid _decide→_advance within one substep
 
 
 func _ready() -> void:
 	_move_cells_per_substep = Tuning.get_int("agents.move_cells_per_substep")
+	_loaded_speed_factor = Tuning.get_num("hauling.loaded_speed_factor")
+	_snow_speed_factor = Tuning.get_num("hauling.snow_speed_factor")
 	_load_precinct()
 	SimClock.substep_passed.connect(_on_substep)
 	# Phase 3 demo: found a one-monk house once the world exists.
@@ -73,6 +81,8 @@ func get_person_view(id: int) -> Dictionary:
 		"office": person.current_office,
 		"order": person.order,
 		"person_class": person.person_class,
+		"carrying_good": person.carrying_good,
+		"carrying_qty": person.carrying_qty,
 	}
 
 
@@ -102,7 +112,11 @@ func add_person(given_name: String, person_class: Monastic.Class, order: Monasti
 	person.person_class = person_class
 	person.order = order
 	person.grid_pos = cell
-	person.target_cell = cell
+	# A sentinel, not `cell`: `_decide` treats "desired_cell == target_cell" as "already pursuing
+	# this, nothing to do", which would wrongly skip ever settling this person if their very first
+	# decision happened to want the cell they were placed on (a hauler seeded at their own
+	# building's door, say). No real grid cell is negative, so this can never collide.
+	person.target_cell = Vector2i(-1, -1)
 	person.activity = Person.Activity.SLEEP
 	_people[person.id] = person
 	return person.id
@@ -112,6 +126,7 @@ func clear() -> void:
 	_people.clear()
 	_next_id = 1
 	_plan_cache.clear()
+	_pending_settle.clear()
 
 
 ## Founds the Phase 3 one-monk house if the community is empty. Idempotent — safe to call from
@@ -133,7 +148,8 @@ func _on_substep() -> void:
 		_advance(person)
 
 
-## Picks where the person should be for this minute and repaths if it changed.
+## Picks where the person should be for this minute and repaths if it changed. In a work block
+## this defers to `_resolve_work`, which is where Phase 4's haul/build assignment happens.
 func _decide(person: Person, minute: float, plan: Dictionary) -> void:
 	var desired_cell := _dormitory_door
 	var settled := Person.Activity.SLEEP
@@ -152,11 +168,12 @@ func _decide(person: Person, minute: float, plan: Dictionary) -> void:
 	if settled == Person.Activity.SLEEP and not plan.get("labour_restricted", false):
 		for block in plan.get("work_blocks", []):
 			if minute >= float(block[0]) and minute < float(block[1]):
-				desired_cell = _work_site
-				settled = Person.Activity.WORKING
+				desired_cell = _resolve_work(person)
+				settled = _activity_for_current_task(person)
 				break
 
 	person.current_office = office_key
+	_pending_settle[person.id] = settled
 
 	if desired_cell == person.target_cell:
 		# Already committed to this destination; arrival is handled in _advance.
@@ -166,23 +183,124 @@ func _decide(person: Person, minute: float, plan: Dictionary) -> void:
 	if person.grid_pos == desired_cell:
 		person.path = []
 		person.activity = settled
+		_execute_task(person)
 		return
 
 	person.path = _repath(person.grid_pos, desired_cell)
 	person.activity = _walking_activity(settled)
 
 
-## Walks the person up to `move_cells_per_substep` cells along their path, then settles them if
-## they have arrived.
+## Walks the person up to their effective speed in cells along their path, then settles and
+## executes whatever they arrived to do.
 func _advance(person: Person) -> void:
 	if person.path.is_empty():
+		_execute_task(person)
 		return
-	var steps := _move_cells_per_substep
+	var steps := _effective_move_cells(person)
 	while steps > 0 and not person.path.is_empty():
 		person.grid_pos = person.path.pop_front()
 		steps -= 1
 	if person.path.is_empty():
-		person.activity = _settled_for_cell(person.target_cell)
+		person.activity = _pending_settle.get(person.id, person.activity)
+		_execute_task(person)
+
+
+# --- Phase 4: task assignment and execution --------------------------------------------
+
+## Where a work block should send this person: continues an in-progress haul or build task,
+## asks `Labour` for a new one if idle, and falls back to the Phase 3 greybox clearing when
+## there is nothing queued (no buildings placed yet, or nothing left to do).
+func _resolve_work(person: Person) -> Vector2i:
+	if not _task_still_valid(person):
+		person.current_task = {}
+		person.carrying_good = ""
+		person.carrying_qty = 0
+
+	if person.current_task.is_empty():
+		var assigned := Labour.request_task(person)
+		if not assigned.is_empty():
+			if assigned["kind"] == "haul":
+				assigned["stage"] = "to_pickup"
+			person.current_task = assigned
+
+	if person.current_task.is_empty():
+		return _work_site
+
+	if person.current_task["kind"] == "haul":
+		var task := Hauling.get_task(int(person.current_task["task_id"]))
+		if task.is_empty():
+			person.current_task = {}
+			return _work_site
+		var stage: String = person.current_task.get("stage", "to_pickup")
+		var building_id: int = int(task["from_id"]) if stage == "to_pickup" else int(task["to_id"])
+		return Buildings.door_cell(building_id)
+
+	return Buildings.door_cell(int(person.current_task["building_id"]))
+
+
+## A held task survives an office interruption unchanged (`SIMULATION_SPEC.md` §6.5's "suspend,
+## resume later"), but not the building finishing, being demolished, or the haul task completing
+## through someone else — those must be re-checked before we walk back to them.
+func _task_still_valid(person: Person) -> bool:
+	if person.current_task.is_empty():
+		return true
+	match person.current_task.get("kind", ""):
+		"build":
+			var b := Buildings.get_building(int(person.current_task["building_id"]))
+			return b != null and b.construction_state == Building.State.UNDER_CONSTRUCTION
+		"haul":
+			return not Hauling.get_task(int(person.current_task["task_id"])).is_empty()
+		_:
+			return false
+
+
+func _activity_for_current_task(person: Person) -> Person.Activity:
+	match person.current_task.get("kind", ""):
+		"haul":
+			return Person.Activity.HAULING
+		"build":
+			return Person.Activity.BUILDING
+		_:
+			return Person.Activity.WORKING   # legacy fallback: the clearing
+
+
+## Runs once arrival is settled: a construction site gets this substep's labour-hours; a haul
+## task's pickup point hands the person their load and flips them toward the dropoff, and the
+## dropoff point clears them to be reassigned. Guarded on `person.activity` (not just
+## `current_task`) so a task held through an office interruption is never executed while the
+## person is actually standing in choir.
+func _execute_task(person: Person) -> void:
+	if person.current_task.is_empty():
+		return
+	match person.current_task.get("kind", ""):
+		"build":
+			if person.activity != Person.Activity.BUILDING:
+				return
+			Buildings.contribute_labour(
+				int(person.current_task["building_id"]), float(SimClock.MINUTES_PER_SUBSTEP) / 60.0
+			)
+		"haul":
+			if person.activity != Person.Activity.HAULING:
+				return
+			_execute_haul_step(person)
+
+
+func _execute_haul_step(person: Person) -> void:
+	var task_id: int = int(person.current_task["task_id"])
+	var stage: String = person.current_task.get("stage", "to_pickup")
+	if stage == "to_pickup":
+		var got := Hauling.pickup(task_id)
+		if got.is_empty():
+			person.current_task = {}
+			return
+		person.carrying_good = got["good_id"]
+		person.carrying_qty = int(got["qty"])
+		person.current_task["stage"] = "to_dropoff"
+	else:
+		Hauling.dropoff(task_id)
+		person.carrying_good = ""
+		person.carrying_qty = 0
+		person.current_task = {}
 
 
 # --- helpers --------------------------------------------------------------------------
@@ -191,18 +309,22 @@ func _walking_activity(settled: Person.Activity) -> Person.Activity:
 	match settled:
 		Person.Activity.AT_OFFICE:
 			return Person.Activity.TO_CHURCH
-		Person.Activity.WORKING:
+		Person.Activity.WORKING, Person.Activity.HAULING, Person.Activity.BUILDING:
 			return Person.Activity.TO_WORK
 		_:
 			return Person.Activity.IDLE
 
 
-func _settled_for_cell(cell: Vector2i) -> Person.Activity:
-	if cell == _church_door:
-		return Person.Activity.AT_OFFICE
-	if cell == _work_site:
-		return Person.Activity.WORKING
-	return Person.Activity.SLEEP
+## Effective cells moved this substep: the Phase 3 watchable pace, slowed while carrying a load
+## or crossing snow (`SIMULATION_SPEC.md` §10) — see `data/tuning.json`'s "hauling" comment for
+## why this scales the placeholder pace rather than switching to a real walking speed.
+func _effective_move_cells(person: Person) -> int:
+	var factor := 1.0
+	if person.carrying_qty > 0:
+		factor *= _loaded_speed_factor
+	if Weather.is_snowing():
+		factor *= _snow_speed_factor
+	return maxi(1, int(round(float(_move_cells_per_substep) * factor)))
 
 
 func _day_plan_for(person: Person, year: int, day: int) -> Dictionary:
