@@ -1,19 +1,26 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 127 passing (GUT 9.6.0, headless)
+**Test count:** 176 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 2 — Seasons and Sky** ← complete on branch `phase-2-seasons-and-sky`
+**Phase 3 — One Monk Walking** ← complete on branch `phase-3-one-monk-walking` (merged to `main`)
 
-The valley now has an authoritative clock, a real solar model, a day/night cycle laid over a
-four-keyframe seasonal blend, snow as a terrain/vegetation shader parameter, deterministic
-daily weather, precipitation particles, and an in-world HUD (date, time, season, weather,
-speed control). Screenshots across summer / winter / autumn in `docs/screenshots/phase2_*`.
+One Cistercian choir monk lives the Divine Office: he sleeps in the greybox dormitory, rises
+for Vigils, walks to the church for each of the eight offices, works the assart between them,
+and keeps the Lord's Day. The **Horarium ring** (toggle `H`) draws the day as a dial — the
+daylight band, the eight offices, the work blocks — and it visibly contracts from midsummer to
+midwinter while the offices stay put (usable daylight labour 9h09m → 2h20m).
+`docs/screenshots/phase3_*`. The whole day runs headless with no scene tree
+(`test_one_monk_day.gd`).
+
+**Phase 2 — Seasons and Sky** — complete and merged. Authoritative clock, solar model,
+day/night over a four-keyframe seasonal blend, snow as a shader parameter, deterministic daily
+weather, precipitation particles, HUD. `docs/screenshots/phase2_*`.
 
 **Phase 1 — The Valley** — exit gate ("a screenshot you actually like") is still the user's
 call. The valley composition, the camera start position, and the final lighting-pass tuning
@@ -28,7 +35,7 @@ items, not Phase 2 regressions.
 | Milestone | Phases | Status |
 |---|---|---|
 | M1 — It's a place | 0–2 | 🟡 Phases 0 done, 1 built (exit gate unsigned), 2 done |
-| M2 — It's alive | 3 | 🔲 Not started |
+| M2 — It's alive | 3 | 🟢 Built — a monk lives the Office; the Horarium shows why it matters |
 | M3 — It's a settlement | 4–5 | 🔲 Not started |
 | M4 — It's a monastery ★ vertical slice | 6 | 🔲 Not started |
 | M5 — It's a game | 7–10 | 🔲 Not started |
@@ -111,7 +118,37 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ## Start here next session
 
-**Phase 2 is complete on `phase-2-seasons-and-sky` (merged to `main`).** `Ctrl+F5` opens the
+**Phase 3 is complete on `phase-3-one-monk-walking` (merged to `main`).** 176 tests pass. The
+new pieces:
+
+| # | Piece | Where |
+|---|---|---|
+| 3.1 | `UnequalHours` — daylight in 12, night in 4, the seven day offices on the scaffold | `scripts/sim/unequal_hours.gd` |
+| 3.2 | `Computus` — Julian Easter + moveable feasts, checked against the record | `scripts/sim/computus.gd` |
+| 3.3 | `Liturgy` autoload + `data/liturgical_calendar.json` — feasts, ranks, fasts, `day_plan` | `autoloads/liturgy.gd` |
+| 3.4 | `Horarium` — pure interval maths for the work blocks | `scripts/sim/horarium.gd` |
+| 3.5 | `Person` + `Population` autoload — the community and its per-substep state machine | `scripts/sim/person.gd`, `autoloads/population.gd` |
+| 3.6 | `Pathfinder` — A* with a real min-heap; `Terrain.is_walkable` / `move_cost` | `scripts/sim/pathfinder.gd` |
+| 3.7 | Movement on `SimClock.substep_passed` (new 10-min signal); view interpolates | — |
+| 3.8 | `monk_view.gd` — greybox figure walking the path (rigged .glb deferred to art pass) | `scripts/view/monk_view.gd` |
+| 3.9 | **`horarium_ring.gd`** — the signature dial, toggle `H` | `scripts/ui/horarium_ring.gd` |
+| 3.10 | `precinct_renderer.gd` — greybox church, dormitory, assart | `scripts/view/precinct_renderer.gd` |
+| — | `Monastic` — shared order/class enums | `scripts/sim/monastic.gd` |
+
+Phase 3 exit criterion ("a clip of a summer and a winter day side by side"): the two Horarium
+screenshots stand in for it; a real clip needs `tools/timelapse.gd` run windowed (produces a
+PNG sequence to assemble with ffmpeg). The monk figure and building boxes are greybox and
+badly framed by the map-centred camera start — a Phase 1 composition item, not a Phase 3 one.
+
+Next: **Phase 4 — Build and Haul** (`goods.json`, `buildings.json`, placement, the frost gate,
+local inventories, hauling, the labour job queue). `Liturgy.day_plan` already yields the work
+blocks the `Labour` autoload will consume.
+
+---
+
+## Superseded — Phase 2 handoff
+
+**Phase 2 was complete on `phase-2-seasons-and-sky` (merged to `main`).** `Ctrl+F5` opens the
 valley with a running clock: the sun rises in the east and sets in the west, the day is
 visibly shorter in winter, the four seasons blend through colour / fog / snow / foliage, daily
 weather brings rain and snow, and a HUD shows the date, season, weather and speed control.
@@ -399,6 +436,25 @@ never seen and "deterministic" tests were anything but. Fixed by calling `self.r
 explicitly, and by deriving every other draw from that one method so `ScriptedDice` overrides
 only `randf()`. Also: `enum Sky` in `weather.gd` silently shadowed the native `Sky` resource
 class and failed the whole autoload — renamed to `Condition`.
+
+### 2026-09-04 — Phase 3 built; the labour budget is analytic, the work blocks are spans
+
+`Liturgy.day_plan` returns two things that sound alike and are not: `labour_budget_min` is the
+SIMULATION_SPEC.md §6.4 arithmetic (`1440 − offices − chapter/Mass − lectio − sleep − meals`),
+which is season-independent and reproduces the worked example's ~529 min; `work_blocks` are the
+actual free spans in the waking window, and `daylight_labour_min` is the budget capped by how
+much of those spans fall between sunrise and sunset. That last figure is the one that collapses
+in winter (9h09m → 2h20m in the Phase 3 screenshots) — the game's whole thesis, and the reason
+the Horarium ring exists.
+
+Placeholders that will want tuning: office/meal/sleep minutes in `liturgical_calendar.json`;
+`agents.move_cells_per_substep` (22 — a deliberately slow, watchable pace, not 5 km/h); the
+feast list is representative, not exhaustive. Vigils is timed backward from dawn by its own
+length rather than pinned to a clock hour.
+
+The state machine has one rough edge left as-is: on a working day, a gap between an office and
+the next work block that is too short to bother walking to the assart still sends the monk
+"home to sleep" for those minutes. Harmless for the demo; a cloister/idle state fixes it.
 
 ### 2026-09-04 — `SimClock.deserialize` re-emits `day_passed` and `season_changed`
 
