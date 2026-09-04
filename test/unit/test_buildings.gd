@@ -176,6 +176,73 @@ func test_find_storage_accepting_skips_an_incomplete_building() -> void:
 	assert_eq(Buildings.find_storage_accepting("timber", Vector2i.ZERO), -1)
 
 
+# --- worker assignment (roadmap 4.9) --------------------------------------------------------
+
+func test_assigning_a_worker_pins_them_to_the_site() -> void:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.deliver_material(id, "sawn_timber", 20)
+	Buildings.deliver_material(id, "nails", 4)
+
+	assert_true(Buildings.assign_worker(id, 1))
+	assert_eq(Buildings.building_for_worker(1), id)
+	assert_eq(Buildings.worker_count(id), 1)
+
+
+func test_assignment_is_refused_beyond_the_type_worker_slots() -> void:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))   # 2 slots
+	Buildings.deliver_material(id, "sawn_timber", 20)
+	Buildings.deliver_material(id, "nails", 4)
+
+	assert_true(Buildings.assign_worker(id, 1))
+	assert_true(Buildings.assign_worker(id, 2))
+	assert_false(Buildings.assign_worker(id, 3), "the hut only has 2 slots")
+	assert_eq(Buildings.worker_count(id), 2)
+
+
+func test_a_worker_cannot_be_assigned_to_a_building_that_is_not_under_construction() -> void:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	assert_eq(Buildings.get_building(id).construction_state, Building.State.PLANNED)
+	assert_false(Buildings.assign_worker(id, 1), "no materials delivered yet")
+
+
+func test_assigning_elsewhere_releases_the_previous_site() -> void:
+	var first := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.deliver_material(first, "sawn_timber", 20)
+	Buildings.deliver_material(first, "nails", 4)
+
+	var second := Buildings.place_building("masons_lodge", _open_site("masons_lodge"))
+	Buildings.deliver_material(second, "sawn_timber", 40)
+	Buildings.deliver_material(second, "nails", 8)
+
+	Buildings.assign_worker(first, 1)
+	Buildings.assign_worker(second, 1)
+
+	assert_eq(Buildings.building_for_worker(1), second)
+	assert_eq(Buildings.worker_count(first), 0, "no longer pinned to the first site")
+
+
+func test_unassign_returns_a_worker_to_the_pool() -> void:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.deliver_material(id, "sawn_timber", 20)
+	Buildings.deliver_material(id, "nails", 4)
+
+	Buildings.assign_worker(id, 1)
+	Buildings.unassign_worker(1)
+	assert_eq(Buildings.building_for_worker(1), -1)
+	assert_eq(Buildings.worker_count(id), 0)
+
+
+func test_completion_clears_the_crew() -> void:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.deliver_material(id, "sawn_timber", 20)
+	Buildings.deliver_material(id, "nails", 4)
+	Buildings.assign_worker(id, 1)
+
+	Buildings.contribute_labour(id, 200.0)   # far more than the 80h it needs
+	assert_eq(Buildings.get_building(id).construction_state, Building.State.COMPLETE)
+	assert_eq(Buildings.building_for_worker(1), -1, "a finished site has no crew left to show")
+
+
 # --- referential integrity, Architecture Guide §6 --------------------------------------------
 
 func test_every_build_material_names_a_real_good() -> void:

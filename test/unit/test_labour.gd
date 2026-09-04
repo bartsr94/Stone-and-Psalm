@@ -77,6 +77,28 @@ func test_a_frost_gated_site_is_skipped_for_construction_labour() -> void:
 	assert_true(Labour.request_task(_person_at(site)).is_empty(), "frost-gated, and nothing else queued")
 
 
+func test_an_assigned_worker_always_returns_to_their_own_site_even_with_haul_work_open() -> void:
+	Buildings.seed_building("open_stockpile", _open_site("open_stockpile"), 0, {"sawn_timber": 100})
+	var lodge_site := _open_site("masons_lodge")
+	var lodge := Buildings.place_building("masons_lodge", lodge_site)
+	Buildings.deliver_material(lodge, "sawn_timber", 40)
+	Buildings.deliver_material(lodge, "nails", 8)
+	Hauling.rebuild_tasks()   # a delivery task now exists elsewhere
+
+	Buildings.assign_worker(lodge, 1)
+	var task := Labour.request_task(_person_at(lodge_site))
+	assert_eq(task, {"kind": "build", "building_id": lodge}, "assigned outranks the queue, haul work notwithstanding")
+
+
+func test_an_assigned_worker_falls_back_to_the_pool_while_their_site_awaits_materials() -> void:
+	var hut_site := _open_site("woodcutters_hut")
+	var hut := Buildings.place_building("woodcutters_hut", hut_site)   # PLANNED, no materials yet
+	Buildings.assign_worker(hut, 1)   # refused — not yet UNDER_CONSTRUCTION — the crew is empty
+
+	assert_eq(Buildings.building_for_worker(1), -1)
+	assert_true(Labour.request_task(_person_at(hut_site)).is_empty(), "nothing else queued either")
+
+
 func test_the_nearest_construction_site_wins_when_several_are_open() -> void:
 	var near_site := _open_site("woodcutters_hut")
 	var near := Buildings.place_building("woodcutters_hut", near_site)

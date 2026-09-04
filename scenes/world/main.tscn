@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/view/buildings_renderer.gd" id="12_buildings"]
 [ext_resource type="Script" path="res://scripts/view/building_placement.gd" id="13_placement"]
 [ext_resource type="Script" path="res://scripts/view/roads_renderer.gd" id="14_roads"]
+[ext_resource type="Script" path="res://scripts/ui/crew_panel.gd" id="15_crew"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -61,3 +62,6 @@ script = ExtResource("6_overlay")
 
 [node name="Hud" type="CanvasLayer" parent="." unique_id=1747990260]
 script = ExtResource("8_hud")
+
+[node name="CrewPanel" type="CanvasLayer" parent="." unique_id=1747990267]
+script = ExtResource("15_crew")
