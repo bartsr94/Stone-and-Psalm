@@ -1,0 +1,51 @@
+{
+  "_comment": "The project palette. Every mesh colour comes from here, painted into the 'Col' vertex colour attribute — see docs/ARCHITECTURE_GUIDE.md section 4.1. Keeping the set small and shared is what makes everything look like one game. Add an entry only when nothing here will do.",
+
+  "limestone_light":   { "hex": "#C9C2B2", "note": "Dressed magnesian limestone, sunlit face" },
+  "limestone_mid":     { "hex": "#A9A296", "note": "Dressed limestone, general" },
+  "limestone_shadow":  { "hex": "#847E75", "note": "Limestone in shade, undercroft" },
+  "gritstone":         { "hex": "#7C766C", "note": "Rougher local stone, rubble walling" },
+  "stone_weathered":   { "hex": "#8E8B7E", "note": "Old stone with lichen" },
+  "lime_render":       { "hex": "#E4DED0", "note": "Limewashed wall, interior and gatehouse" },
+  "mortar":            { "hex": "#BDB6A6", "note": "Fresh mortar course" },
+
+  "oak_fresh":         { "hex": "#8A6B44", "note": "New sawn timber, scaffolding" },
+  "oak_weathered":     { "hex": "#5E4C39", "note": "Old structural timber, doors" },
+  "oak_dark":          { "hex": "#3E3227", "note": "Beams in shadow, pit-sawn ends" },
+  "thatch":            { "hex": "#B39558", "note": "Straw thatch, outer-court roofs" },
+  "thatch_old":        { "hex": "#8A7343", "note": "Weathered thatch, moss-darkened" },
+  "shingle":           { "hex": "#6B5F4E", "note": "Oak shingle roofing" },
+  "lead_roof":         { "hex": "#6E727A", "note": "Lead sheet, church and presbytery" },
+  "slate":             { "hex": "#575D63", "note": "Stone slate roofing" },
+
+  "habit_white":       { "hex": "#DAD6C8", "note": "Cistercian undyed choir habit" },
+  "habit_black":       { "hex": "#2B2A28", "note": "Benedictine and Cluniac habit" },
+  "russet":            { "hex": "#7A5F45", "note": "Conversi undyed working cloth" },
+  "linen":             { "hex": "#D6CDB8", "note": "Undershirts, altar cloth, coifs" },
+  "leather":           { "hex": "#6A4E36", "note": "Belts, shoes, aprons" },
+  "skin_pale":         { "hex": "#C99C7C", "note": "Faces and hands" },
+
+  "grass_spring":      { "hex": "#6E8A4A", "note": "New meadow" },
+  "grass_summer":      { "hex": "#7C8C46", "note": "Meadow at height" },
+  "grass_autumn":      { "hex": "#8A8149", "note": "Late grass going over" },
+  "grass_winter":      { "hex": "#6B6650", "note": "Dead winter grass" },
+  "moor_heather":      { "hex": "#6B5A63", "note": "Moorland above the dale" },
+  "bracken":           { "hex": "#8A6236", "note": "Autumn bracken on the slopes" },
+  "foliage_dark":      { "hex": "#3E5232", "note": "Woodland canopy" },
+  "foliage_light":     { "hex": "#5C7440", "note": "Canopy highlight" },
+  "soil":              { "hex": "#4E4034", "note": "Ploughed field, building site" },
+  "mud":               { "hex": "#5C4F40", "note": "Trackways, yard" },
+  "crop_green":        { "hex": "#7E9145", "note": "Standing corn, still green" },
+  "crop_ripe":         { "hex": "#C4A548", "note": "Ripe corn at harvest" },
+
+  "water_river":       { "hex": "#5A6E70", "note": "Running water in the dale" },
+  "water_pond":        { "hex": "#4C5C58", "note": "Stew ponds, still and green" },
+  "snow":              { "hex": "#E8EAEC", "note": "Winter cover" },
+  "ice":               { "hex": "#BFCBD1", "note": "Frozen pond edge" },
+
+  "iron":              { "hex": "#4A4A4C", "note": "Tools, fittings, nails" },
+  "charcoal":          { "hex": "#26241F", "note": "Charcoal stacks, burnt ground" },
+  "fire":              { "hex": "#D07A32", "note": "Kiln mouth, forge, calefactory hearth" },
+  "candle_wax":        { "hex": "#E5D8B0", "note": "Beeswax altar candles" },
+  "parchment":         { "hex": "#DCCFAE", "note": "Parchment, manuscript leaves" }
+}

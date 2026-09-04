@@ -37,10 +37,15 @@ Design documentation complete. No Godot project exists yet.
 | — | Architecture Guide | ✅ Done | `docs/ARCHITECTURE_GUIDE.md` |
 | — | Roadmap | ✅ Done | `docs/planning/ROADMAP.md` |
 | — | CLAUDE.md | ✅ Done | |
+| — | Asset Pipeline doc | ✅ Done | `docs/ASSET_PIPELINE.md` |
+| — | Blender pipeline scripts | ✅ Done | `tools/blender/` — validate, export, setup_material. **Verified end to end against Blender 4.5.10 LTS** — see Decision Log 2026-09-04 |
+| — | Project palette | ✅ Done | `data/palette.json`, 42 entries |
+| — | `.mcp.json` (godot + blender) | ✅ Done | Only active in a session run from the project dir |
+| — | Git LFS | ✅ Done | `.gitattributes`; no migration needed — first commit was text only |
 | 0.1 | Create Godot project (4.6.1, Forward+/D3D12) | 🔲 Not started | |
 | 0.2 | Folder scaffold | 🔲 Not started | Architecture Guide §3 |
 | 0.3 | Install GUT 9.6.0, verify headless, pin | 🔲 Not started | **Before the first test.** 9.7.1 fails on 4.6.1 |
-| 0.4 | Git init + `.gitignore` | 🔲 Not started | Every paused project here without git lost history |
+| 0.4 | Git init + `.gitignore` | ✅ Done | Repo existed with docs commit; `.gitignore` merged, LFS added after |
 | 0.5 | Fix 3D conventions in code | 🔲 Not started | Architecture Guide §4 |
 | 0.6 | Orthographic camera rig | 🔲 Not started | Most-used code in the game |
 | 0.7 | Vendor greybox kit into `assets/kit/` | 🔲 Not started | Permissive licence; record it |
@@ -49,12 +54,47 @@ Design documentation complete. No Godot project exists yet.
 
 ---
 
+## Start here next session
+
+Docs are complete and the art pipeline is verified. **No Godot project exists yet** — that is the
+next thing to build.
+
+Do these in order (Roadmap Phase 0):
+
+| # | Task | Note |
+|---|---|---|
+| 0.1 | Create the Godot project — 4.6.1, Forward+ / D3D12 | `Godot_v4.6.1-stable_win64.exe` in `Documents\` |
+| 0.2 | Folder scaffold | Architecture Guide §3 |
+| 0.3 | Install GUT **9.6.0**, verify headless, then pin | **Before writing any test.** 9.7.1 fails on 4.6.1 |
+| 0.7 | Choose and vendor a greybox kit into `assets/kit/` | **Decision needed** — Kenney medieval/survival (CC0) is the leading candidate. Record the licence in `assets/kit/LICENCE.md` |
+| 0.5 | Fix the 3D conventions in code | Architecture Guide §4 |
+| 0.6 | Orthographic camera rig — 40° pitch, 90° yaw steps | The most-used code in the game |
+| 0.8 | `WorldEnvironment` v0 — sun, sky, SSAO, fog | Rough is fine; Phase 2 makes it good |
+
+**Then Phase 1 is the valley, and its exit criterion is a screenshot you actually like.** If it
+isn't attractive, iterate there rather than moving on — nothing later fixes a valley that looks
+bad.
+
+### Environment notes
+
+- **`.mcp.json` only activates in a session started from this directory.** It configures `godot`
+  and `blender`; Claude Code asks to approve the servers on first use.
+- **`blender-mcp` is not usable yet** — it needs `uv` (`winget install --id astral-sh.uv`), then
+  the addon from [ahujasid/blender-mcp](https://github.com/ahujasid/blender-mcp) installed into
+  Blender and its server started from the viewport sidebar. Steps in `docs/ASSET_PIPELINE.md` §6.
+  It is optional; the headless scripts do not need it.
+- Git LFS is active for `*.blend`, `*.glb` and images. `git lfs install --local` has been run in
+  this clone; a fresh clone elsewhere needs it again.
+- Installing Blender via winget needs a **UAC prompt**, so it cannot be done from a
+  non-interactive agent session. Already done here.
+
+---
+
 ## Known Gaps / Blockers
 
 | Item | Note |
 |---|---|
 | **Greybox kit not chosen** | Blocks task 0.7. Kenney's medieval/survival packs are the leading candidate (CC0). Needs a licence check and a look at whether the massing suits an abbey. |
-| **No Blender pipeline verified** | The `.glb` → Godot round-trip with a vertex-colour attribute named `Col` is assumed, not tested. Verify with one throwaway cube **before** Phase 1's material work. |
 | **Valley heightmap authoring method undecided** | Handcrafted, but by what tool — Godot terrain plugin, Blender sculpt, or a hand-painted heightmap PNG? Decide in Phase 1. |
 | **Liturgical calendar data not authored** | `liturgical_calendar.json` needs real feast dates. Phase 3 blocker, not Phase 0. |
 | **Performance of 250 agents unproven** | Assumed fine with one material and no `MultiMesh`. Profile at Phase 4 before committing (Architecture Guide §5). |
@@ -126,6 +166,53 @@ exists**, and every phase carries a screenshot or clip as an exit criterion.
 This is a direct countermeasure to the documented portfolio failure mode (Star Routes: 134 tests,
 ten systems, zero rendering; Frontiers Unknown: 1251 tests, paused at polish) — a risk that is
 unusually high here because `SIMULATION_SPEC.md` is deep and headless work is tempting.
+
+### 2026-09-04 — Blender is a headless pipeline tool, not an authoring agent
+
+Asset work is split in two (`docs/ASSET_PIPELINE.md` §1): **hero assets are modelled by hand**,
+because that is the entire point of the project and because LLM-driven modelling produces
+topology that needs redoing anyway; **pipeline is automated** through headless
+`blender --background --python`, which costs no learning and catches conventions errors that are
+invisible in Blender and expensive in Godot.
+
+`blender-mcp` is configured but **deliberately scoped** to blockout/massing, script debugging and
+one-off batch cleanup. It cannot be a build step regardless — it needs Blender running
+interactively with its socket server started. The bundled AI mesh generators (Rodin, Hunyuan3D)
+are not used: they emit textured meshes, which fights the vertex-colour decision below.
+
+**Blender 4.5 LTS pinned** rather than the current 5.2.1, because Python API drift between
+versions is the known way pipeline scripts break, and third-party addons lag new majors.
+
+### 2026-09-04 — Asset pipeline verified end to end
+
+Blender **4.5.10 LTS** installed. The full round-trip was proved with a throwaway 2 m cube,
+which closes the "no Blender pipeline verified" blocker:
+
+| Step | Result |
+|---|---|
+| `validate_assets.py` on a raw cube | **Correctly failed** (exit 1) on missing `Col` and missing material — and did *not* false-flag naming, transforms or origin |
+| `setup_material.py -- --save` | Created `M_StoneAndPsalm`, added the `Col` attribute, assigned it |
+| `validate_assets.py` again | Passed, exit 0 |
+| `export_gltf.py` | Exported; **no settings were rejected by 4.5**, so the version-drift filter had nothing to drop |
+| `.glb` inspection | `COLOR_0` present; 0 images, 0 textures, no UVs; Y-up; bbox `[-1,0,-1]`→`[1,2,1]`, confirming origin at ground-centre and 1 unit = 1 metre |
+| Godot 4.6.1 headless import | Imports clean; `has_vertex_colors=true`; AABB pos `(-1,0,-1)` size `(2,2,2)`; material `M_StoneAndPsalm` |
+| Godot material flags | **`vertex_color_use_as_albedo=true` is set automatically** by Godot's glTF importer when `COLOR_0` is present — no manual step needed. Roughness 0.85 and metallic 0.0 carry through from the Blender Principled BSDF. |
+
+**Three bugs were found and fixed by running it**, all of which would have bitten later:
+
+1. `report_palette()` crashed on the `_comment` key (string, not a dict), and because it ran
+   *before* the save, the file silently went unwritten. Reordered so the save happens first.
+2. The palette path was resolved relative to the caller's working directory. Now resolved
+   relative to the script's own location.
+3. **Blender exits 0 even when a Python script raises an unhandled exception.** A validator that
+   "passes" because it crashed is worse than no validator. All three scripts now catch and
+   `sys.exit(1)`.
+
+### 2026-09-04 — Git LFS from day zero
+
+`*.blend`, `*.glb` and image formats tracked via LFS. Binary art does not diff or merge, and
+migrating to LFS later means rewriting history. Nearly free now, painful in six months. The
+existing first commit was text-only, so no migration was needed.
 
 ### 2026-09-04 — Vertex colours over textures
 

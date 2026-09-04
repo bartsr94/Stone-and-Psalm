@@ -8,8 +8,9 @@ Orientation for working in this codebase. **Read this first, then the doc you ne
 | **What must the simulation actually compute?** | `docs/SIMULATION_SPEC.md` |
 | Is this historically right? | `docs/reference/HISTORICAL_REFERENCE.md` |
 | Where does code live and why? | `docs/ARCHITECTURE_GUIDE.md` |
+| How does art get made and get in? | `docs/ASSET_PIPELINE.md` |
 | What are we building next? | `docs/planning/ROADMAP.md` |
-| What's done and what's broken? | `STATUS.md` |
+| **What's done, what's broken, what's next?** | `STATUS.md` |
 
 ---
 
@@ -53,6 +54,36 @@ Two gotchas already paid for once elsewhere in this portfolio:
   Use `-RedirectStandardOutput`.
 - **GUT 9.6.0, not 9.7.1.** 9.6.0 is verified working on 4.6.1 (Star Routes, 134 tests). 9.7.1
   failed against 4.6.1 in Barbarian Prince.
+
+---
+
+## Art pipeline
+
+**Blender 4.5.10 LTS** — `C:\Program Files\Blender Foundation\Blender 4.5\blender.exe`. Pinned;
+LTS because Python API drift is what breaks pipeline scripts. Verified end to end on 2026-09-04.
+
+```powershell
+$BLENDER = "C:\Program Files\Blender Foundation\Blender 4.5\blender.exe"
+
+# Gate: exits 1 on any conventions violation. Run before every commit.
+& $BLENDER --background --python tools/blender/validate_assets.py -- assets/blend
+
+# Export only what changed (add --force after the paths for everything)
+& $BLENDER --background --python tools/blender/export_gltf.py -- assets/blend assets/models
+
+# Repair a file's material / Col attribute
+& $BLENDER <file>.blend --background --python tools/blender/setup_material.py -- --save
+```
+
+Three things worth knowing, all learned the hard way:
+
+- **Blender exits 0 even when a Python script raises.** All three scripts catch and
+  `sys.exit(1)`. **Never remove those handlers** — a validator that "passes" because it crashed
+  is worse than no validator.
+- **Godot sets `vertex_color_use_as_albedo = true` automatically** when the `.glb` carries
+  `COLOR_0`. No manual step, no import preset.
+- **Hero assets are modelled by hand.** `blender-mcp` is configured but scoped to blockout,
+  script debugging and batch cleanup only — `docs/ASSET_PIPELINE.md` §6 says why.
 
 ---
 

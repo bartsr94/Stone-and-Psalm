@@ -1,28 +1,40 @@
 # Godot 4+
 .godot/
-.import/
-export.cfg
-export_presets.cfg
+/android/
 *.translation
 
-# Imported assets metadata
-*.import
+# Note: *.import files ARE committed in Godot 4 — they carry import settings and stable
+# resource UIDs. Only the .godot/ cache is generated. (Godot 3 ignored them; this is 4.6.)
 
-# Mono-specific
+# Export config can carry keystore paths and passwords
+export_presets.cfg
+
+# Mono / C# — not used here, but harmless to keep ignored
 .mono/
 data_*/
 
 # Builds
 builds/
+/build/
+/export/
 *.exe
 *.pck
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Editor
-.vscode/
-*.tmp
+# Test output
 test_results.txt
 test_errors.txt
+
+# Blender
+*.blend1
+*.blend2
+__pycache__/
+
+# Secrets — .mcp.json reads these from the environment, never inline
+.env
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
