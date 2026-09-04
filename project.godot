@@ -20,6 +20,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 Tuning="*res://autoloads/tuning.gd"
 SimClock="*res://autoloads/sim_clock.gd"
 Terrain="*res://autoloads/terrain.gd"
+Weather="*res://autoloads/weather.gd"
 
 [editor_plugins]
 

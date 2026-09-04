@@ -39,13 +39,17 @@
 
   "weather": {
     "_comment": "Phase 2.7 daily weather. Authoritative and deterministic from an injected Dice (docs/ARCHITECTURE_GUIDE.md §7). Seasonal mean temperature in °C and daily precipitation probability are lerped from the same season curve; day-to-day variation is bounded noise, then a 3-day trailing smooth. freeze_point_c gates frost; hard_frost_c gates the construction frost gate later.",
+    "rng_seed": 776112,
     "smoothing_days": 3,
     "temp_variation_c": 4.5,
     "precip_variation": 0.22,
     "freeze_point_c": 0.0,
     "hard_frost_c": -3.0,
-    "season_mean_temp_c": [1.5, 8.0, 16.0, 9.0],
-    "season_precip_chance": [0.42, 0.40, 0.30, 0.44],
+    "coldest_day_of_year": 20,
+    "winter_mean_temp_c": 1.5,
+    "summer_mean_temp_c": 16.0,
+    "winter_precip_chance": 0.42,
+    "summer_precip_chance": 0.30,
     "snow_below_temp_c": 1.0
   },
 

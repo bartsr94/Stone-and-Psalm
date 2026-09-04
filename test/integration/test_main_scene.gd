@@ -225,6 +225,33 @@ func test_vegetation_foliage_follows_the_season() -> void:
 	assert_gt(winter_tint.r, winter_tint.g, "bare winter canopy is twig-brown, not green")
 
 
+func test_precipitation_follows_the_weather() -> void:
+	var precipitation: Node3D = _find("Precipitation") as Node3D
+	assert_not_null(precipitation, "the precipitation node is in the scene")
+	var rain := precipitation.find_child("Rain", false, false) as GPUParticles3D
+	var snow := precipitation.find_child("Snow", false, false) as GPUParticles3D
+	assert_not_null(rain, "a rain emitter")
+	assert_not_null(snow, "a snow emitter")
+
+	# A mild wet day: rain on, snow off. (dice: temp noise, precip noise, precipitation check.)
+	Weather.set_dice(ScriptedDice.new([0.5, 0.5, 0.02]))
+	Weather.roll_day(200)
+	assert_true(rain.emitting, "rain falls on a mild wet day")
+	assert_false(snow.emitting)
+
+	# A cold wet day: snow on, rain off.
+	Weather.set_dice(ScriptedDice.new([0.35, 0.5, 0.02]))
+	Weather.roll_day(20)
+	assert_true(snow.emitting, "snow falls on a cold wet day")
+	assert_false(rain.emitting)
+
+	# A dry day: nothing falling.
+	Weather.set_dice(ScriptedDice.new([0.5, 0.5, 0.99]))
+	Weather.roll_day(200)
+	assert_false(rain.emitting)
+	assert_false(snow.emitting)
+
+
 func test_vegetation_samples_are_jittered_inside_stride_tiles() -> void:
 	var renderer: Node = _find("VegetationRenderer")
 	var residues: Dictionary = {}
