@@ -48,10 +48,13 @@ func pick(options: Array) -> Variant:
 	return options[randi_range(0, options.size() - 1)]
 
 
+## The seed and stream position. Stored as strings: the generator state is a 64-bit value, and
+## JSON numbers are doubles — round-tripping it as a number would silently lose the low bits and
+## break determinism after a load.
 func serialize() -> Dictionary:
-	return {"seed": _rng.seed, "state": _rng.state}
+	return {"seed": str(_rng.seed), "state": str(_rng.state)}
 
 
 func deserialize(data: Dictionary) -> void:
-	_rng.seed = int(data.get("seed", 0))
-	_rng.state = int(data.get("state", _rng.state))
+	_rng.seed = int(str(data.get("seed", "0")))
+	_rng.state = int(str(data.get("state", str(_rng.state))))

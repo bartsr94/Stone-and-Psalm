@@ -23,6 +23,7 @@ Terrain="*res://autoloads/terrain.gd"
 Weather="*res://autoloads/weather.gd"
 Liturgy="*res://autoloads/liturgy.gd"
 Population="*res://autoloads/population.gd"
+SaveManager="*res://autoloads/save_manager.gd"
 
 [editor_plugins]
 
