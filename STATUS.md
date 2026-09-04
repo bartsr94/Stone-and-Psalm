@@ -1,16 +1,16 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 264 passing (GUT 9.6.0, headless)
+**Test count:** 278 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 4 — Build and Haul** ← simulation core, mouse-driven placement, and roads built and
-tested on branch `phase-4-roads` (built on `phase-4-placement-ui`, merged to `main`); the
-worker-assignment UI and true partial-construction models are not, so the phase is not closed
+**Phase 4 — Build and Haul** ← simulation core, mouse-driven placement, roads, and now
+worker-assignment are built and tested on branch `phase-4-worker-ui` (built on `phase-4-roads`,
+merged to `main`); true partial-construction models (4.11) are not, so the phase is not closed
 out.
 
 Goods, building types, placement (a real ghost-preview UI, not just a headless API), the
@@ -26,10 +26,15 @@ granary; a mortar building stalls in a hard frost and resumes once it passes). A
 flat plate; a carried sack shows on a hauler's back. Press `B` to place: `Tab` cycles buildings
 then a single-cell road, `R` rotates, left click confirms on a green (valid) or red (invalid)
 ghost, `Escape` cancels. Roads are cheaper to cross than any natural terrain — the pathfinder
-actively routes onto one, and a person standing on one covers more ground per substep.
-`docs/screenshots/phase4_construction_site.png` is the demo site three simulated days in;
+actively routes onto one, and a person standing on one covers more ground per substep. A worker
+can be pinned to a construction crew — press `C` for the crews panel, `+`/`−` per site — and an
+assigned builder always works their own site once it is buildable, outranking even open haul
+work; unassigned people still fall back to the nearest open site or the haul queue exactly as
+before. `docs/screenshots/phase4_construction_site.png` is the demo site three simulated days in;
 `phase4_placement_ghost.png` is the ghost-preview UI mid-placement; `phase4_road.png` is a built
-road beside the assart clearing. **Start here next session** below has what is still open.
+road beside the assart clearing; `phase4_crew_panel.png` is the crews panel open over a
+part-built masons' lodge with one worker assigned. **Start here next session** below has what is
+still open.
 
 **Phase 3 — One Monk Walking** — complete on branch `phase-3-one-monk-walking` (merged to `main`)
 
@@ -141,8 +146,8 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ## Start here next session
 
-**Phase 4's simulation core, placement UI and roads are built and tested on `phase-4-roads`,
-built on the merged `phase-4-placement-ui`.** 264 tests pass. The new pieces:
+**Phase 4's simulation core, placement UI, roads and worker assignment are built and tested on
+`phase-4-worker-ui`, built on the merged `phase-4-roads`.** 278 tests pass. The new pieces:
 
 | # | Piece | Where |
 |---|---|---|
@@ -159,16 +164,16 @@ built on the merged `phase-4-placement-ui`.** 264 tests pass. The new pieces:
 | 4.10 | Roads: `Terrain.set_road`/`is_road`, cheaper than any natural terrain in `move_cost` (the pathfinder routes onto one) and a substep speed bonus in `Population`; placed as the last entry in the same `B`/`Tab`/click cycle as buildings; the one piece of terrain state `Terrain` actually saves | `autoloads/terrain.gd`, `scripts/view/roads_renderer.gd`, `scripts/view/building_placement.gd` |
 | — | `Population` extended: `current_task`, the `HAULING`/`BUILDING` activities, `_resolve_work` | `autoloads/population.gd`, `scripts/sim/person.gd` |
 | — | `BuildingsRenderer` — every building as a greybox rising from a staked plot to full height as `build_progress` climbs, roofed once `COMPLETE` | `scripts/view/buildings_renderer.gd` |
-| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_terrain_ray`, `test_terrain_roads`, `test_population_road_speed`, `test_build_input_map`, `test_building_placement_runtime` (real input, in the tree), `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
+| 4.9 | Worker assignment: `Buildings.assign_worker`/`unassign_worker`/`building_for_worker`, scoped to sites currently `UNDER_CONSTRUCTION` (a production building's own `worker_slots` do nothing until a Phase 5 recipe exists to run them — see the decision log); `Labour.request_task` gives an assigned worker their own site ahead of the haul queue, falling back to the pool while that site awaits materials or is frost-gated; a code-built `CrewPanel` (toggle `C`) lists open sites with `+`/`−` and a laborer-pool count | `autoloads/buildings.gd`, `autoloads/labour.gd`, `scripts/ui/crew_panel.gd` |
+| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_terrain_ray`, `test_terrain_roads`, `test_population_road_speed`, `test_build_input_map`, `test_building_placement_runtime` (real input, in the tree), `test_crew_panel_runtime` (real input, in the tree), `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
 
 **Not built yet — genuinely open, not just untested:**
 
 | # | Task | Note |
 |---|---|---|
-| 4.9 | Worker-count-per-building + laborer-pool UI | Everyone idle is the laborer pool today; nobody can be pinned to one site |
 | 4.11 | Real partial-construction models | The renderer's rising box is an honest placeholder, not a staged model |
 | — | Camera framing for the demo site | The demo (a stockpile + a granary beside the assart clearing) sits at the edge of the default camera framing — a Phase 1 composition item, same class of issue as Phase 3's "badly framed by the map-centred camera start" |
-| — | Placement is footprint-only | No preview of the door cell, no confirmation sound/flash, no placing while paused-menu'd; fine for a first pass, worth revisiting once there is a real building menu (4.9) to sit next to it |
+| — | Placement is footprint-only | No preview of the door cell, no confirmation sound/flash, no placing while paused-menu'd; fine for a first pass |
 | — | Roads are single cells laid one click at a time | No click-drag to lay a run at once; fine for a first pass, a real annoyance once roads are actually being built at scale |
 
 **A test-environment gotcha that will bite the next runtime input test, found only by a mouse
@@ -225,6 +230,25 @@ an actual multi-day run was tried:**
    building that skips real delivery still reads as owing its own construction cost forever,
    and `Hauling.rebuild_tasks` will queue a haul task moving a stocked building's own goods to
    itself. Fixed by having `seed_building` mark every required good fully delivered.
+
+**4.9's scope decision, worth stating explicitly:** the panel only ever lists sites currently
+`UNDER_CONSTRUCTION`, never a `COMPLETE` production building's own `worker_slots` — those slots
+exist in `data/buildings.json` for Phase 5's recipes to read (`SIMULATION_SPEC.md` §7.3), but
+nothing runs a recipe yet, so a "assign a woodcutter to the woodcutters' hut" control today would
+toggle a number nothing reads. Building the recipe-running side first and folding production
+staffing into the same panel afterward is the natural Phase 5 follow-up, not a second panel.
+
+**One more layering bug, the same shape as the click-test gotcha above but for a `CanvasLayer`,
+not a `Control` filter:** `CrewPanel` was first anchored top-left like every other new panel in
+this codebase, and every test passed — because the tests only ever check `Buildings`/`Labour`
+state and the panel's own accessors, never a screenshot. Only the phase screenshot showed that
+`SiteStatusOverlay` (`layer = 20`) draws on top of `CrewPanel` (`layer = 16`) and the two panels
+sit at the exact same corner, so the crew panel was being drawn completely hidden behind the
+site's title card the whole time. Fixed by moving `CrewPanel` to top-centre, the one screen
+region none of `SiteStatusOverlay`, `Hud` or `HorariumRing` already claims. **A UI test suite
+that never renders anything cannot catch two `CanvasLayer`s occupying the same rectangle — only
+the screenshot can, which is exactly the "no visual output, not finished" rule `CLAUDE.md`
+states for a different reason** (see "The one risk that matters").
 
 One more, smaller: `Population.add_person`'s new demo callers can start a person exactly on the
 cell their first real decision will also want (a hauler seeded at their own building's door).

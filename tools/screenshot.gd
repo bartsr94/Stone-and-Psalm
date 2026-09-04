@@ -1,7 +1,7 @@
 ## Renders a scene and writes a PNG, for the screenshot that every phase's exit criteria require
 ## (docs/planning/ROADMAP.md — "a phase with no visual output is not finished").
 ##
-##     godot --path . -s tools/screenshot.gd -- [scene] [output] [settle_frames] [day] [minute] [pre_run_days]
+##     godot --path . -s tools/screenshot.gd -- [scene] [output] [settle_frames] [day] [minute] [pre_run_days] [input_actions]
 ##
 ## Defaults to the main scene, `docs/screenshots/latest.png`, 45 frames, and — if a `SimClock`
 ## autoload is present — day-of-year 172 (midsummer) at minute 780 (13:00), so a phase shot is
@@ -14,6 +14,11 @@
 ## silently under-run Population's per-substep decisions. Use this to let something with a state
 ## that accumulates over days — a haul, a construction site — actually progress before the shot,
 ## rather than only ever capturing the instant the world was founded.
+##
+## `input_actions` (default "", 7th arg) is a comma-separated list of input action names
+## (`project.godot`'s `[input]` map) simulated as a press-then-release, in order, right after
+## `pre_run_days` and before the clock is pinned — for capturing a toggled UI panel (`crew_toggle`,
+## `build_toggle`) without a bespoke script per feature.
 ##
 ## Two things this has to get right:
 ##
@@ -44,6 +49,7 @@ func _capture() -> void:
 	var day_of_year: int = int(args[3]) if args.size() > 3 else 172
 	var minute_of_day: float = float(args[4]) if args.size() > 4 else 780.0
 	var pre_run_days: int = int(args[5]) if args.size() > 5 else 0
+	var input_actions: String = args[6] if args.size() > 6 else ""
 
 	var scene: PackedScene = load(scene_path)
 	if scene == null:
@@ -65,6 +71,25 @@ func _capture() -> void:
 			for _i in pre_run_days * 144:   # 144 substeps/day at MINUTES_PER_SUBSTEP = 10
 				clock.advance_minutes(10.0)
 			await process_frame   # let the scene tree pick up wherever pre_run_days left the world
+
+		# `Input.action_press` only sets polling state, not a real `InputEvent` — panels like
+		# `CrewPanel`/`BuildingPlacement` toggle on `_unhandled_input`, so this replays the
+		# actual bound event instead, the same shape the runtime input tests use.
+		for action in input_actions.split(",", false):
+			var bound := InputMap.action_get_events(action)
+			if bound.is_empty():
+				push_warning("screenshot: no bound event for action '%s'" % action)
+				continue
+			var press: InputEvent = bound[0].duplicate()
+			press.set("pressed", true)
+			Input.parse_input_event(press)
+			await process_frame
+			await process_frame
+			var release: InputEvent = bound[0].duplicate()
+			release.set("pressed", false)
+			Input.parse_input_event(release)
+			await process_frame
+
 		var start_day: int = 74  # SimClock._start_day_index; day-of-year 75 is the epoch
 		var total_days: int = posmod(day_of_year - 1 - start_day, 365) + 365
 		clock.deserialize({"abs_minute": float(total_days) * 1440.0 + minute_of_day, "speed_index": 0})

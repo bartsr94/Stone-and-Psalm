@@ -288,6 +288,7 @@ func contribute_labour(id: int, hours: float, skill_factor: float = -1.0) -> boo
 	b.build_progress = Construction.apply_progress(b.build_progress, hours, factor, total_hours)
 	if b.build_progress >= 1.0:
 		b.construction_state = Building.State.COMPLETE
+		b.assigned_workers.clear()   # the crew's job here is done; a stale assignment would just hide them from the pool
 		building_completed.emit(id)
 	return true
 
@@ -300,6 +301,65 @@ func is_frost_gated(id: int) -> bool:
 		return false
 	var requires_mortar: bool = get_type(b.type_id).get("requires_mortar", false)
 	return Construction.frost_blocks_progress(requires_mortar, Weather.temperature_c(), _frost_gate_temp_c)
+
+
+# --- worker assignment (roadmap 4.9) ----------------------------------------------------------
+#
+# SIMULATION_SPEC.md §6.5, §7.3: the player can pin a person to a specific building — "assigned
+# jobs... outrank the queue" — leaving everyone else as the laborer pool `Labour` already draws
+# on. Scoped to construction crews for now: a production building's worker_slots have nothing to
+# do until Phase 5 gives them a recipe to run, and assigning someone to stand at a finished shed
+# doing nothing would look like a bug, not a feature.
+
+## The building this person is currently pinned to, or -1 if they are in the laborer pool. A
+## small linear scan over placed buildings rather than a reverse index on `Person` — there is no
+## Phase 4 map large enough for this to matter, and it keeps `Building.assigned_workers` the one
+## place this fact lives.
+func building_for_worker(person_id: int) -> int:
+	for id in building_ids():
+		if (_instances[id] as Building).assigned_workers.has(person_id):
+			return id
+	return -1
+
+
+func worker_count(id: int) -> int:
+	var b := get_building(id)
+	if b == null:
+		return 0
+	return b.assigned_workers.size()
+
+
+func worker_slots(id: int) -> int:
+	var b := get_building(id)
+	if b == null:
+		return 0
+	return int(get_type(b.type_id).get("worker_slots", 0))
+
+
+## Pins `person_id` to `building_id`'s construction crew, first releasing them from wherever they
+## were pinned before (a person is never assigned to two sites at once). Refuses a building that
+## is not `UNDER_CONSTRUCTION` (see the section comment above), one with no free slot, or a
+## person already at that slot count. Returns whether the assignment took.
+func assign_worker(building_id: int, person_id: int) -> bool:
+	var b := get_building(building_id)
+	if b == null or b.construction_state != Building.State.UNDER_CONSTRUCTION:
+		return false
+	if b.assigned_workers.has(person_id):
+		return true
+	if b.assigned_workers.size() >= worker_slots(building_id):
+		return false
+	unassign_worker(person_id)
+	b.assigned_workers.append(person_id)
+	return true
+
+
+## Releases `person_id` from whatever building they are pinned to, if any. Safe to call on
+## someone already in the laborer pool.
+func unassign_worker(person_id: int) -> void:
+	var current := building_for_worker(person_id)
+	if current == -1:
+		return
+	(_instances[current] as Building).assigned_workers.erase(person_id)
 
 
 # --- local inventory: no global pool -----------------------------------------------------------
