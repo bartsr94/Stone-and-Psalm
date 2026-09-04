@@ -157,6 +157,16 @@ func test_precinct_and_monk_are_in_the_scene() -> void:
 	assert_gt(monks.get_child_count(), 0, "at least one monk figure was spawned")
 
 
+func test_buildings_renderer_reflects_the_demo_construction_site() -> void:
+	var renderer: Node3D = _find("BuildingsRenderer") as Node3D
+	assert_not_null(renderer, "the buildings renderer is instanced")
+	# The demo site (Buildings.found_demo_construction_site) is seeded via call_deferred; pump a
+	# frame for that and for the renderer's own _process to pick it up.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_gt(renderer.get_child_count(), 0, "at least one construction site was drawn")
+
+
 func test_horarium_ring_is_present() -> void:
 	var ring: CanvasLayer = _find("HorariumRing") as CanvasLayer
 	assert_not_null(ring, "the Horarium ring UI is instanced")

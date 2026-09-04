@@ -23,6 +23,10 @@ Terrain="*res://autoloads/terrain.gd"
 Weather="*res://autoloads/weather.gd"
 Liturgy="*res://autoloads/liturgy.gd"
 Population="*res://autoloads/population.gd"
+Goods="*res://autoloads/goods.gd"
+Buildings="*res://autoloads/buildings.gd"
+Hauling="*res://autoloads/hauling.gd"
+Labour="*res://autoloads/labour.gd"
 SaveManager="*res://autoloads/save_manager.gd"
 
 [editor_plugins]

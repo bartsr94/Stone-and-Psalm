@@ -51,6 +51,7 @@ func _spawn(id: int, view: Dictionary) -> _Figure:
 class _Figure:
 	var root: Node3D
 	var _pivot: Node3D
+	var _pack: MeshInstance3D
 	var visual_pos: Vector3
 	var _visual_path: Array[Vector3] = []
 	var _bob_phase: float = 0.0
@@ -85,10 +86,22 @@ class _Figure:
 		head.material_override = _tint("skin_pale")
 		_pivot.add_child(head)
 
+		# Phase 4.7: a carried sack, shown only while `carrying_qty > 0` — small, but it is what
+		# makes hauling read as hauling rather than a monk walking for no visible reason.
+		_pack = MeshInstance3D.new()
+		var sack := BoxMesh.new()
+		sack.size = Vector3(0.34, 0.34, 0.24)
+		_pack.mesh = sack
+		_pack.position = Vector3(0.0, 1.0, -0.32)
+		_pack.material_override = _tint("oak_fresh")
+		_pack.visible = false
+		_pivot.add_child(_pack)
+
 	func update(view: Dictionary, delta: float, walk_speed: float, lerp_rate: float,
 			bob_height: float, bob_hz: float) -> void:
 		var sim_pos: Vector3 = view["world_pos"]
 		var path_world: Array = view["path_world"]
+		_pack.visible = int(view.get("carrying_qty", 0)) > 0
 
 		# Adopt the sim's path when we have none, or when we have drifted too far behind it.
 		if (_visual_path.is_empty() and not path_world.is_empty()) or visual_pos.distance_to(sim_pos) > 8.0:

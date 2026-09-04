@@ -8,6 +8,8 @@ func before_each() -> void:
 	Weather.set_dice(Dice.new(90210))
 	Weather.roll_day(SimClock.day_of_year())
 	Terrain.build_preset("founding_valley")
+	Buildings.clear()
+	Hauling.clear()
 	Population.clear()
 	Population.found_demo_house()
 	# Walk the monk a little way into his day so the saved state is non-trivial.

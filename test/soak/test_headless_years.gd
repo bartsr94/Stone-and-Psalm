@@ -14,6 +14,8 @@ func before_each() -> void:
 	Weather.set_dice(Dice.new(13579))
 	Weather.roll_day(SimClock.day_of_year())
 	Terrain.build_preset("founding_valley")
+	Buildings.clear()
+	Hauling.clear()
 	Population.clear()
 	Population.found_demo_house()
 
@@ -44,6 +46,8 @@ func test_the_run_is_deterministic_from_the_seed() -> void:
 	SimClock.deserialize({"abs_minute": 0.0, "speed_index": 0})
 	Weather.set_dice(Dice.new(13579))
 	Weather.roll_day(SimClock.day_of_year())
+	Buildings.clear()
+	Hauling.clear()
 	Population.clear()
 	Population.found_demo_house()
 	for _day in 400:

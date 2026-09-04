@@ -1,0 +1,102 @@
+{
+  "_comment": "Building types for player placement, Phase 4 (SIMULATION_SPEC.md §7.2, roadmap 4.1). Read by autoloads/buildings.gd. footprint_cells is [width, length] in 2m terrain cells before rotation. build_materials + build_labour_hours are placeholder construction costs (the spec only fully specifies the church's seven stages, §9.1, which are a Phase 8 concern) — sized to feel roughly proportionate to footprint and worker_slots, and easy to retune here without touching code. requires_mortar gates a stone building's UNDER_CONSTRUCTION progress on Weather.temperature_c() via tuning construction.frost_gate_temp_c (SIMULATION_SPEC.md §11). storage_capacity + open_air are only meaningful on category 'storage' (§7.2's storage table; open_stockpile is the one that 'spoils in rain', modelled as double spoilage in autoloads/buildings.gd). Which goods a storage building accepts is not repeated here — it is derived from each good's storable_in list in data/goods.json, so there is one place that mapping lives. colour/roof_colour key into data/palette.json, same convention as data/precinct.json, for the greybox renderer. This list covers the Phase 4 exit criteria (a granary, and the timber/stone chain that feeds it); the rest of §7.2's ~30 building types are added as later phases' chains need them — a JSON entry each, zero code changes.",
+
+  "woodcutters_hut": {
+    "label": "Woodcutter's Hut",
+    "category": "production",
+    "footprint_cells": [3, 3],
+    "worker_slots": 2,
+    "build_materials": { "sawn_timber": 20, "nails": 4 },
+    "build_labour_hours": 80,
+    "requires_mortar": false,
+    "colour": "oak_weathered",
+    "roof_colour": "shingle"
+  },
+  "quarry": {
+    "label": "Quarry",
+    "category": "production",
+    "footprint_cells": [4, 4],
+    "worker_slots": 4,
+    "build_materials": { "sawn_timber": 15 },
+    "build_labour_hours": 60,
+    "requires_mortar": false,
+    "colour": "gritstone",
+    "roof_colour": "oak_weathered"
+  },
+  "masons_lodge": {
+    "label": "Masons' Lodge",
+    "category": "production",
+    "footprint_cells": [4, 3],
+    "worker_slots": 3,
+    "build_materials": { "sawn_timber": 40, "nails": 8 },
+    "build_labour_hours": 150,
+    "requires_mortar": false,
+    "colour": "oak_fresh",
+    "roof_colour": "shingle"
+  },
+  "granary": {
+    "label": "Granary",
+    "category": "storage",
+    "footprint_cells": [4, 6],
+    "worker_slots": 0,
+    "build_materials": { "sawn_timber": 60, "nails": 10 },
+    "build_labour_hours": 250,
+    "requires_mortar": false,
+    "storage_capacity": 4000,
+    "open_air": false,
+    "colour": "oak_weathered",
+    "roof_colour": "thatch"
+  },
+  "tithe_barn": {
+    "label": "Tithe Barn",
+    "category": "storage",
+    "footprint_cells": [6, 10],
+    "worker_slots": 0,
+    "build_materials": { "building_stone": 40, "mortar": 20, "sawn_timber": 150, "nails": 20 },
+    "build_labour_hours": 700,
+    "requires_mortar": true,
+    "storage_capacity": 8000,
+    "open_air": false,
+    "colour": "limestone_mid",
+    "roof_colour": "thatch"
+  },
+  "cellarers_undercroft": {
+    "label": "Cellarer's Undercroft",
+    "category": "storage",
+    "footprint_cells": [5, 5],
+    "worker_slots": 0,
+    "build_materials": { "building_stone": 200, "mortar": 100, "sawn_timber": 20 },
+    "build_labour_hours": 900,
+    "requires_mortar": true,
+    "storage_capacity": 3000,
+    "open_air": false,
+    "colour": "limestone_shadow",
+    "roof_colour": "lead_roof"
+  },
+  "wool_store": {
+    "label": "Wool Store",
+    "category": "storage",
+    "footprint_cells": [4, 5],
+    "worker_slots": 0,
+    "build_materials": { "sawn_timber": 50, "nails": 8 },
+    "build_labour_hours": 200,
+    "requires_mortar": false,
+    "storage_capacity": 2000,
+    "open_air": false,
+    "colour": "oak_fresh",
+    "roof_colour": "thatch"
+  },
+  "open_stockpile": {
+    "label": "Open Stockpile",
+    "category": "storage",
+    "footprint_cells": [3, 3],
+    "worker_slots": 0,
+    "build_materials": { "sawn_timber": 5 },
+    "build_labour_hours": 20,
+    "requires_mortar": false,
+    "storage_capacity": 1000,
+    "open_air": true,
+    "colour": "soil",
+    "roof_colour": "soil"
+  }
+}

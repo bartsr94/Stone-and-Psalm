@@ -68,6 +68,19 @@
     "snow_below_temp_c": 1.0
   },
 
+  "construction": {
+    "_comment": "Phase 4, SIMULATION_SPEC.md §11. frost_gate_temp_c is the 'temperature < 2°C' rule stated in prose there; it is read from the already-simulated Weather.temperature_c() rather than a hardcoded calendar window, so the gate falls out of the seasonal model instead of being pinned to a date. default_skill_factor stands in for the skill system (Phase 6) — every builder currently contributes labour at the same rate.",
+    "frost_gate_temp_c": 2.0,
+    "default_skill_factor": 1.0
+  },
+
+  "hauling": {
+    "_comment": "Phase 4, SIMULATION_SPEC.md §10. carry_max_units is the placeholder per-trip cap, unmodified by strength (Phase 6). loaded_speed_factor and snow_speed_factor scale the existing watchable move_cells_per_substep pace (agents.move_cells_per_substep) rather than switching to real-world walking speed — a literal 1.2 m/s would cross the whole 192-cell map in under two substeps at accelerated sim-time and break the deliberately slow, watchable Phase 3 pace. Real speed and the road bonus (§4.10) are a follow-up once roads exist to make the trade-off visible.",
+    "carry_max_units": 25,
+    "loaded_speed_factor": 0.7,
+    "snow_speed_factor": 0.6
+  },
+
   "camera": {
     "_comment": "The orthographic rig, docs/ARCHITECTURE_GUIDE.md §4. Pitch, yaw step and the ortho range are conventions rather than taste — the rest is feel and can be tuned freely. distance_m is the exception: because the projection is orthographic it has no effect on apparent size, but volumetric fog and the shadow range are both measured from the camera, so a distant camera drowns the whole scene in fog and pushes it past directional_shadow_max_distance. Keep it just large enough to clear the geometry at the widest zoom.",
     "pitch_deg": 40.0,
