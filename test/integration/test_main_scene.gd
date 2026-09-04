@@ -157,11 +157,14 @@ func test_precinct_and_monk_are_in_the_scene() -> void:
 	assert_gt(monks.get_child_count(), 0, "at least one monk figure was spawned")
 
 
-func test_buildings_renderer_reflects_the_demo_construction_site() -> void:
+func test_buildings_renderer_draws_a_placed_building() -> void:
 	var renderer: Node3D = _find("BuildingsRenderer") as Node3D
 	assert_not_null(renderer, "the buildings renderer is instanced")
-	# The demo site (Buildings.found_demo_construction_site) is seeded via call_deferred; pump a
-	# frame for that and for the renderer's own _process to pick it up.
+	# Placed directly rather than relying on Buildings.found_demo_construction_site's once-ever
+	# call_deferred, which another test's Buildings.clear() can permanently undo for the rest of
+	# this process (that hook never fires a second time — see STATUS.md's Phase 4 notes).
+	var site := Buildings.find_site_near("open_stockpile", Vector2i(100, 100))
+	Buildings.place_building("open_stockpile", site)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_gt(renderer.get_child_count(), 0, "at least one construction site was drawn")

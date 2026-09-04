@@ -1,27 +1,31 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 235 passing (GUT 9.6.0, headless)
+**Test count:** 252 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 4 — Build and Haul** ← core simulation built and tested on branch
-`phase-4-build-and-haul`; the placement UI, worker-assignment UI, roads and true
-partial-construction models are not, so the phase is not closed out.
+**Phase 4 — Build and Haul** ← simulation core and mouse-driven placement built and tested on
+branch `phase-4-placement-ui` (built on `phase-4-build-and-haul`, merged to `main`); the
+worker-assignment UI, roads and true partial-construction models are not, so the phase is not
+closed out.
 
-Goods, building types, placement, the construction state machine, the frost gate, local
-building inventories (no global pool), hauling, and task assignment are all built, headless, and
-tested — `test_goods.gd`, `test_construction.gd`, `test_buildings.gd`, `test_hauling.gd`,
-`test_labour.gd`, and the day-in-the-life `test_build_and_haul.gd` (two conversi haul timber and
-nails from a stocked stockpile and raise a granary; a mortar building stalls in a hard frost and
-resumes once it passes). A greybox `BuildingsRenderer` draws every placed building — rising from
-a staked plot to full height as `build_progress` climbs, roofed once `COMPLETE` — and a carried
-sack now shows on a hauler's back. `docs/screenshots/phase4_construction_site.png` is the demo
-site three simulated days in: the stockpile full, the granary about half built, two conversi
-still working it. **Start here next session** below has what is still open.
+Goods, building types, placement (now a real ghost-preview UI, not just a headless API), the
+construction state machine, the frost gate, local building inventories (no global pool),
+hauling, and task assignment are all built and tested — `test_goods.gd`, `test_construction.gd`,
+`test_buildings.gd`, `test_hauling.gd`, `test_labour.gd`, `test_terrain_ray.gd`,
+`test_build_input_map.gd`, `test_building_placement_runtime.gd`, and the day-in-the-life
+`test_build_and_haul.gd` (two conversi haul timber and nails from a stocked stockpile and raise a
+granary; a mortar building stalls in a hard frost and resumes once it passes). A greybox
+`BuildingsRenderer` draws every placed building — rising from a staked plot to full height as
+`build_progress` climbs, roofed once `COMPLETE` — and a carried sack shows on a hauler's back.
+Press `B` to place: `Tab` cycles the type, `R` rotates, left click confirms on a green (valid) or
+red (invalid) ghost, `Escape` cancels. `docs/screenshots/phase4_construction_site.png` is the
+demo site three simulated days in; `docs/screenshots/phase4_placement_ghost.png` is the
+ghost-preview UI mid-placement. **Start here next session** below has what is still open.
 
 **Phase 3 — One Monk Walking** — complete on branch `phase-3-one-monk-walking` (merged to `main`)
 
@@ -51,7 +55,7 @@ items, not Phase 2 regressions.
 |---|---|---|
 | M1 — It's a place | 0–2 | 🟡 Phases 0 done, 1 built (exit gate unsigned), 2 done |
 | M2 — It's alive | 3 | 🟢 Built — a monk lives the Office; the Horarium shows why it matters |
-| M3 — It's a settlement | 4–5 | 🟡 Phase 4 sim built and tested; placement/worker UI, roads, staged models still open |
+| M3 — It's a settlement | 4–5 | 🟡 Phase 4 sim + placement UI built and tested; worker UI, roads, staged models still open |
 | M4 — It's a monastery ★ vertical slice | 6 | 🔲 Not started |
 | M5 — It's a game | 7–10 | 🔲 Not started |
 | M6 — It's finished | 11–12 | 🔲 Not started |
@@ -133,14 +137,15 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ## Start here next session
 
-**Phase 4's simulation core is built and tested on `phase-4-build-and-haul`, not yet merged.**
-235 tests pass. The new pieces:
+**Phase 4's simulation core and placement UI are built and tested on `phase-4-placement-ui`,
+built on the merged `phase-4-build-and-haul`.** 252 tests pass. The new pieces:
 
 | # | Piece | Where |
 |---|---|---|
 | 4.1 | `Goods` + `data/goods.json` (every good §8 lists); `Buildings` + `data/buildings.json` (8 types: 3 production, 5 storage — the rest of §7.2's ~30 are added as later phases' chains need them) | `autoloads/goods.gd`, `autoloads/buildings.gd` |
 | — | `Building` record — footprint, construction state, `delivered_materials`, local `inventory` | `scripts/sim/building.gd` |
-| 4.2 | Placement: `Buildings.place_building`/`can_place`, grid snap (cell-integer anchors), rotation (footprint axis swap), overlap checking. **No ghost-preview/mouse UI yet** — placement is a headless API only | `autoloads/buildings.gd` |
+| 4.2 | Placement: `Buildings.place_building`/`can_place`, grid snap, rotation (footprint axis swap), overlap checking — **and now a real ghost-preview UI**: `B` enters placement mode, `Tab` cycles the type, `R` rotates, left click confirms on a green/red ghost, `Escape` cancels | `autoloads/buildings.gd`, `scripts/view/building_placement.gd` |
+| — | `TerrainRay.intersect_ground` — pure ray/heightfield intersection (march + bisect) behind the mouse-to-cell picking, fed by whatever camera projection is live so it survives pans/turns/zoom | `scripts/sim/terrain_ray.gd` |
 | 4.3 | Construction state machine + the frost gate | `scripts/sim/construction.gd`, `autoloads/buildings.gd` |
 | 4.4 | Local building inventories, capacity-limited. **No global pool** | `autoloads/buildings.gd` |
 | 4.5 | The 5 storage types from §7.2's table, capacities as specified | `data/buildings.json` |
@@ -149,20 +154,40 @@ heightmap and 1.4's first river-surface implementation is complete.
 | 4.8 | `Labour` autoload — haul-task-or-construction-labour assignment, stateless | `autoloads/labour.gd` |
 | — | `Population` extended: `current_task`, the `HAULING`/`BUILDING` activities, `_resolve_work` | `autoloads/population.gd`, `scripts/sim/person.gd` |
 | — | `BuildingsRenderer` — every building as a greybox rising from a staked plot to full height as `build_progress` climbs, roofed once `COMPLETE` | `scripts/view/buildings_renderer.gd` |
-| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
+| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_terrain_ray`, `test_build_input_map`, `test_building_placement_runtime` (real input, in the tree), `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
 
 **Not built yet — genuinely open, not just untested:**
 
 | # | Task | Note |
 |---|---|---|
-| 4.2 | Ghost-preview placement UI (mouse → terrain cell, rotate, confirm) | The headless API (`can_place`/`place_building`) is ready for a UI to call |
 | 4.9 | Worker-count-per-building + laborer-pool UI | Everyone idle is the laborer pool today; nobody can be pinned to one site |
 | 4.10 | Roads and their haul-speed bonus | `hauling.loaded_speed_factor`/`snow_speed_factor` exist; the road multiplier does not yet |
 | 4.11 | Real partial-construction models | The renderer's rising box is an honest placeholder, not a staged model |
 | — | Camera framing for the demo site | The demo (a stockpile + a granary beside the assart clearing) sits at the edge of the default camera framing — a Phase 1 composition item, same class of issue as Phase 3's "badly framed by the map-centred camera start" |
+| — | Placement is footprint-only | No preview of the door cell, no confirmation sound/flash, no placing while paused-menu'd; fine for a first pass, worth revisiting once there is a real building menu (4.9) to sit next to it |
 
-**Two bugs worth knowing before extending this further, both invisible until an actual multi-day
-run was tried:**
+**On top of the two bugs below the Build-and-Haul core already found (see the next entry down),
+the placement UI surfaced two more, both again invisible until it actually ran in the tree:**
+
+1. **A script's own custom methods are invisible to the type checker through a variable typed as
+   its base class.** `_placement: Node3D = ...; _placement.current_type_id()` is a parse error
+   ("cannot infer the type") because nothing tells the compiler `Node3D` has that method — only
+   the attached script does. Needed `class_name BuildingPlacement` (matching `CameraRig`'s own
+   pattern) and typing the test's variable as that, not `Node3D`. A GDScript arity/type error in
+   a **test** file is reported by GUT as "ignoring script … because it does not extend GutTest"
+   — a red herring worth recognising on sight, the same way the class_name-import warning is.
+2. **`Buildings.found_demo_construction_site()`'s `call_deferred` seed fires exactly once per
+   process.** Any test that calls `Buildings.clear()` (the placement runtime tests need a clean
+   slate) permanently removes the demo site for the rest of that test run — nothing re-triggers
+   the deferred call. `test_main_scene.gd`'s renderer check depended on that seed still being
+   there and started failing the moment a sibling test file cleared it first. Fixed by having
+   that test place its own building directly instead of relying on incidental boot-time state —
+   the general lesson (and the reason this is filed here, not just fixed silently): **a test
+   should never depend on another autoload's one-time boot side effect still holding**, the same
+   isolation discipline `Population.clear()` already had to earn in every Phase 3 test.
+
+**Two bugs worth knowing before extending the Build-and-Haul core further, both invisible until
+an actual multi-day run was tried:**
 
 1. **`SimClock.advance_days` is the wrong tool for a test that needs Population's per-substep
    decisions to actually run every day.** Its own doc comment only promises `day_passed` fires
@@ -592,6 +617,29 @@ existing tests passing unchanged with no buildings placed.
 
 Not attempted this pass: the placement UI (4.2's ghost preview), worker-assignment UI (4.9),
 roads (4.10), and real partial-construction models (4.11) — see "Start here next session".
+
+### 2026-09-04 — Phase 4.2: ray/heightfield picking instead of a terrain collider
+
+Mouse-driven placement needs "where does the cursor point at on the ground", and the terrain has
+no physics collider (Architecture Guide's performance targets never asked for one, and adding
+one just for picking would mean keeping a `CollisionShape3D` in sync with every dirty-chunk
+remesh). Chose an analytic approach instead: `TerrainRay.intersect_ground` marches the camera's
+projected ray in fixed 2 m steps sampling `Terrain.elevation_at`, then bisects the bracket where
+it crosses from above ground to below. Pure and fed a `Callable`, so its own tests
+(`test_terrain_ray.gd`) hand it a flat plane or a synthetic slope and never touch the real
+`Terrain` autoload — the placement controller is the only thing that binds it to the live valley.
+Works unchanged through the camera's pans, turns and zoom, because it only ever reads whatever
+ray `Camera3D.project_ray_origin`/`project_ray_normal` currently produce.
+
+Two more bugs this surfaced, on top of the Build-and-Haul core's own two — a script's custom
+methods are invisible to the type checker through a variable typed as its bare base class (GUT
+reports the resulting parse error in a test file as "ignoring script … because it does not
+extend GutTest", not as a parse error — recognise that message for what it is); and
+`Buildings.found_demo_construction_site()`'s once-ever `call_deferred` seed does not survive a
+sibling test calling `Buildings.clear()` first, which is a general lesson about not depending on
+another autoload's one-time boot side effect, not a defect in the demo seed itself. Both are
+detailed in "Start here next session" above, since they will bite again the next time a new
+`class_name`-bearing view script or a new demo-seeding autoload is added.
 
 ---
 
