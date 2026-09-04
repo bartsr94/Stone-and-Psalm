@@ -1,0 +1,28 @@
+# Godot 4+
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+*.translation
+
+# Imported assets metadata
+*.import
+
+# Mono-specific
+.mono/
+data_*/
+
+# Builds
+builds/
+*.exe
+*.pck
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.tmp
+test_results.txt
+test_errors.txt
