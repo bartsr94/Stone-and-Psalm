@@ -23,6 +23,17 @@
     "colour": "gritstone",
     "roof_colour": "oak_weathered"
   },
+  "sawpit": {
+    "label": "Sawpit",
+    "category": "production",
+    "footprint_cells": [3, 2],
+    "worker_slots": 2,
+    "build_materials": { "sawn_timber": 10 },
+    "build_labour_hours": 40,
+    "requires_mortar": false,
+    "colour": "oak_weathered",
+    "roof_colour": "shingle"
+  },
   "masons_lodge": {
     "label": "Masons' Lodge",
     "category": "production",

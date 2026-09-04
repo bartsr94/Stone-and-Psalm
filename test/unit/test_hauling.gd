@@ -140,6 +140,50 @@ func test_haul_out_moves_produced_goods_to_an_accepting_store() -> void:
 	assert_eq(Buildings.inventory_of(producer, "timber"), 0)
 
 
+func test_rebuild_queues_a_production_input_task_from_a_stocked_source() -> void:
+	var hut := Buildings.seed_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.add_to_inventory(hut, "timber", 30)   # more than sawing's own 10-unit need
+	var sawpit := Buildings.seed_building("sawpit", _open_site("sawpit"))
+
+	Hauling.rebuild_tasks()
+
+	var ids := Hauling.open_task_ids()
+	assert_eq(ids.size(), 1)
+	var task := Hauling.get_task(ids[0])
+	assert_eq(task["good_id"], "timber")
+	assert_eq(task["from_id"], hut)
+	assert_eq(task["to_id"], sawpit)
+	assert_eq(task["purpose"], "input")
+	assert_eq(task["priority"], Hauling.PRIORITY_INPUT)
+	assert_eq(int(task["qty_remaining"]), 10, "only what the batch needs, not the source's whole stock")
+
+
+func test_a_no_input_recipe_never_queues_a_production_input_task() -> void:
+	Buildings.seed_building("open_stockpile", _open_site("open_stockpile"), 0, {"sawn_timber": 100})
+	Buildings.seed_building("woodcutters_hut", _open_site("woodcutters_hut"))   # felling needs no inputs
+	Hauling.rebuild_tasks()
+	assert_eq(Hauling.open_task_ids().size(), 0, "both are already COMPLETE and stocked; nothing to haul at all")
+
+
+func test_a_production_building_never_hauls_its_own_partial_stock_to_itself() -> void:
+	var sawpit := Buildings.seed_building("sawpit", _open_site("sawpit"))
+	Buildings.add_to_inventory(sawpit, "timber", 3)   # short of sawing's 10, and nowhere else has any
+	Hauling.rebuild_tasks()
+	assert_eq(Hauling.open_task_ids().size(), 0)
+
+
+func test_input_delivery_outranks_hauling_produced_goods_to_storage() -> void:
+	var hut := Buildings.seed_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.add_to_inventory(hut, "timber", 30)
+	Buildings.seed_building("sawpit", _open_site("sawpit"))
+	Buildings.seed_building("open_stockpile", _open_site("open_stockpile"))
+
+	Hauling.rebuild_tasks()
+	var ids := Hauling.open_task_ids()
+	assert_eq(ids.size(), 1, "the sawpit's need absorbs the hut's timber before any goes to storage")
+	assert_eq(Hauling.get_task(ids[0])["purpose"], "input")
+
+
 func test_serialize_round_trip() -> void:
 	Buildings.seed_building("open_stockpile", _open_site("open_stockpile"), 0, {"sawn_timber": 100})
 	Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))

@@ -8,10 +8,15 @@
 ## one place: a good only ever moves from one `Building.inventory` to another, through here.
 extends Node
 
-## Construction material delivery outranks hauling produced goods to storage, `SIMULATION_SPEC.md`
-## §6.5's placeholder priority table (the other listed priorities — emergencies, food, fuel,
-## harvest, construction/production labour — belong to systems Phase 4 does not build yet).
+## Construction material delivery outranks feeding a production building's next batch, which in
+## turn outranks hauling produced goods off to storage — `SIMULATION_SPEC.md` §6.5's placeholder
+## priority table (the other listed priorities — emergencies, food, fuel, harvest — belong to
+## systems this project does not build yet). PRIORITY_INPUT has no line of its own in that table;
+## it sits just under construction delivery because, same as a construction site, a production
+## building can do nothing at all without it, and just over storage because a stocked producer
+## already has something to show for itself while it waits.
 const PRIORITY_DELIVERY := 70
+const PRIORITY_INPUT := 65
 const PRIORITY_STORAGE := 50
 
 enum State { QUEUED, ASSIGNED }
@@ -53,6 +58,31 @@ func rebuild_tasks() -> void:
 			if qty <= 0:
 				continue
 			_queue(good_id, qty, source, id, PRIORITY_DELIVERY, "delivery")
+
+	# Feed a production building's next batch, `SIMULATION_SPEC.md` §10: "a consuming building
+	# pulls from its own inventory; when short, it queues a haul task from the nearest store that
+	# holds the good." A no-input recipe (raw extraction — felling, quarrying) never appears here.
+	for id in Buildings.building_ids():
+		var b := Buildings.get_building(id)
+		if b.construction_state != Building.State.COMPLETE:
+			continue
+		if str(Buildings.get_type(b.type_id).get("category", "")) != "production":
+			continue
+		for recipe_id in Production.recipe_ids_for(b.type_id):
+			var inputs: Dictionary = Production.get_recipe(recipe_id).get("inputs", {})
+			var good_ids := inputs.keys()
+			good_ids.sort()
+			for good_id in good_ids:
+				var need: int = int(inputs[good_id]) - Buildings.inventory_of(id, good_id)
+				if need <= 0 or _has_open_task(good_id, -1, id):
+					continue
+				var source := Buildings.find_source_of(good_id, 1, Buildings.door_cell(id))
+				if source == -1 or source == id:   # never haul a building's own partial stock to itself
+					continue
+				var qty: int = mini(need, Buildings.inventory_of(source, good_id))
+				if qty <= 0:
+					continue
+				_queue(good_id, qty, source, id, PRIORITY_INPUT, "input")
 
 	for id in Buildings.building_ids():
 		var b := Buildings.get_building(id)
