@@ -1,17 +1,45 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 278 passing (GUT 9.6.0, headless)
+**Test count:** 306 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 4 — Build and Haul** ← simulation core, mouse-driven placement, roads, and now
+**Phase 5 — The Working Year** ← begun: recipes and the first production chain built and tested
+on branch `phase-5-production` (built on the merged `phase-4-worker-ui`). Only 5.1 plus the first
+half of 5.2 (felling and quarrying — raw extraction, no chain further downstream yet) exist so
+far; everything else in the roadmap's Phase 5 table is still open. Started ahead of formally
+closing Phase 4 — a deliberate call, not drift: the only thing Phase 4 is missing is 4.11 (real
+partial-construction models), which the roadmap itself says stays greybox-acceptable
+indefinitely, and 5.1 needed nothing from 4.11 to build on.
+
+`data/recipes.json` + a `Production` autoload run recipe batches at a `COMPLETE` building: inputs
+(if any) are consumed from the building's own inventory when a batch starts, labour accumulates
+exactly like construction's `build_progress`, and the outputs land in that same local inventory
+when it finishes — a felled log or a quarried block is `no global pool` all over again, and
+`Hauling.rebuild_tasks`'s existing "haul produced goods to storage" scan needed zero changes to
+start moving it out to the nearest stockpile. `Buildings.assign_worker`/`CrewPanel` (roadmap 4.9)
+now also accept a `COMPLETE` production building, not just a construction site — the crews panel
+shows what a site is actually doing (`· building`, `· producing Felling`, `· idle`, or
+`· nothing to produce`) rather than just a headcount. `test_recipe_progress.gd`, `test_production.gd`,
+the extended `test_buildings.gd`/`test_labour.gd`, and the day-in-the-life
+`test_production_chain.gd` (a hut is raised, its crew fells timber, and a second, unassigned
+conversus hauls the surplus out to storage — all three phases in one run) cover it.
+`docs/screenshots/phase5_production.png` is the crews panel open on a woodcutter's hut mid-batch.
+
+One bug worth carrying forward, in "Start here next session" below: a production task's validity
+check needed its own rule, not construction's — a `COMPLETE` building never stops being
+`COMPLETE`, so an unassigned pool worker who started producing would never have re-entered the
+queue and could never be pulled onto a haul task that outranked them.
+
+**Phase 4 — Build and Haul** — simulation core, mouse-driven placement, roads, and
 worker-assignment are built and tested on branch `phase-4-worker-ui` (built on `phase-4-roads`,
-merged to `main`); true partial-construction models (4.11) are not, so the phase is not closed
-out.
+merged to `main`); true partial-construction models (4.11) are not, so the phase is not formally
+closed out, though every exit-criterion behaviour ("place a granary; watch conversi carry timber
+and stone... watch it rise; watch work stop... and resume") already holds.
 
 Goods, building types, placement (a real ghost-preview UI, not just a headless API), the
 construction state machine, the frost gate, local building inventories (no global pool),
@@ -64,7 +92,7 @@ items, not Phase 2 regressions.
 |---|---|---|
 | M1 — It's a place | 0–2 | 🟡 Phases 0 done, 1 built (exit gate unsigned), 2 done |
 | M2 — It's alive | 3 | 🟢 Built — a monk lives the Office; the Horarium shows why it matters |
-| M3 — It's a settlement | 4–5 | 🟡 Phase 4 sim, placement UI and roads built and tested; worker UI and staged models still open |
+| M3 — It's a settlement | 4–5 | 🟡 Phase 4 built and tested save for staged construction models; Phase 5 begun (recipes, felling, quarrying) |
 | M4 — It's a monastery ★ vertical slice | 6 | 🔲 Not started |
 | M5 — It's a game | 7–10 | 🔲 Not started |
 | M6 — It's finished | 11–12 | 🔲 Not started |
@@ -145,6 +173,44 @@ heightmap and 1.4's first river-surface implementation is complete.
 ---
 
 ## Start here next session
+
+**Phase 5.1 (+ the first half of 5.2) is built and tested on `phase-5-production`, built on the
+merged `phase-4-worker-ui`.** 306 tests pass. The new pieces:
+
+| # | Piece | Where |
+|---|---|---|
+| 5.1 | `data/recipes.json` (two entries so far: felling, quarrying) + `Production` autoload — `start`/`can_start` (consumes inputs, sets `active_recipe`), `contribute_labour` (auto-starts the next batch, accumulates `recipe_progress`, deposits `outputs` and resets on completion, `batch_completed` signal), `can_produce` (the production equivalent of `Buildings.is_frost_gated`) | `data/recipes.json`, `autoloads/production.gd` |
+| — | `RecipeProgress` — pure labour-progress arithmetic, `Construction`'s formula mirrored for a recipe batch rather than reused (the autoload already needed the name `Production`) | `scripts/sim/recipe_progress.gd` |
+| 5.2 (half) | Felling (`woodcutters_hut`, no inputs → 10 timber, 4h) and quarrying (`quarry`, no inputs → 8 building_stone, 6h) — the two recipes from §9's table that need no building type beyond what Phase 4 already placed. Sawing, charcoal and everything past raw extraction wait on their own building types | `data/recipes.json` |
+| — | `Buildings.assign_worker`/`CrewPanel` extended: a `COMPLETE` production building (not just a construction site) now accepts a crew; `Labour.request_task` gives an assigned worker a `produce` task at their own site, and an unassigned pool worker the nearest producible site, ranked between haul work and construction labour | `autoloads/buildings.gd`, `autoloads/labour.gd`, `scripts/ui/crew_panel.gd` |
+| — | `Person.Activity.PRODUCING`; `Population` executes a `produce` task the same shape as `build`/`haul` | `scripts/sim/person.gd`, `autoloads/population.gd` |
+| — | `test_recipe_progress.gd`, `test_production.gd`, extended `test_buildings.gd`/`test_labour.gd`, the day-in-the-life `test_production_chain.gd` | `test/` |
+
+**Not built yet — genuinely open, not just untested:**
+
+| # | Task | Note |
+|---|---|---|
+| 5.2 (rest) | Sawing, charcoal, and every other chain in §9's table | Each needs its own building type first (sawpit, charcoal stack, ...) — a JSON entry each once Phase 5 gets there, per the roadmap's stated order (timber → firewood; grain → flour → bread; barley → malt → ale) |
+| 5.3–5.9 | Fields, livestock, consumption, spoilage, seasonal gating, the chain view UI | Untouched |
+
+**The bug worth knowing before extending production further:** a production task's validity
+check cannot reuse construction's shape. `Population._task_still_valid`'s `"build"` case works
+because `UNDER_CONSTRUCTION` is a finite window that ends the task on its own once the building
+completes — but a production building's `COMPLETE` state never ends, so an unassigned pool
+worker who started producing would hold that task forever and could never be pulled onto a haul
+task that outranks it (found by `test_production_chain.gd`'s "surplus timber... gets hauled out"
+assertion, which failed until this was fixed — the timber piled up at the hut but nobody was ever
+free to carry it). Fixed by giving `"produce"` its own rule: a task held by the building's
+*assigned* crew (`Buildings.building_for_worker(person.id) == building_id`) stays valid forever,
+matching "assigned jobs... outrank the queue"; a task held by anyone else stays valid only through
+the *current batch* (`Building.active_recipe != ""`) and is re-offered to `Labour` at every batch
+boundary. The general form of this bug — **a state that never naturally expires needs an explicit
+re-evaluation point, or a locked-in pool worker becomes invisible to every task that should
+outrank them** — is worth checking again the next time a new task kind is added to `Labour`.
+
+---
+
+## Superseded — Phase 4 handoff
 
 **Phase 4's simulation core, placement UI, roads and worker assignment are built and tested on
 `phase-4-worker-ui`, built on the merged `phase-4-roads`.** 278 tests pass. The new pieces:

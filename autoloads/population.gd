@@ -4,14 +4,14 @@
 ## the fixed 10-sim-minute step — so the same seed and calendar always produce the same
 ## movements; the view only interpolates between substeps.
 ##
-## Phase 3 is one monk; Phase 4 adds haulers and builders. Each substep, for every person in id
-## order (never dictionary order — Architecture Guide §7): look up the day's horarium from
-## `Liturgy`, decide whether this minute belongs to an office, a work block, or sleep. In a work
-## block, `_resolve_work` asks `Labour` for a haul or construction task and walks the person
-## toward it — falling back to the Phase 3 greybox clearing in `data/precinct.json` when there is
-## nothing queued, which is what keeps the one-monk demo unchanged with no buildings placed.
-## Arrival executes the task (`_execute_task`): a labour contribution to `Buildings`, or a
-## pickup/dropoff through `Hauling`.
+## Phase 3 is one monk; Phase 4 adds haulers and builders; Phase 5 adds recipe workers. Each
+## substep, for every person in id order (never dictionary order — Architecture Guide §7): look
+## up the day's horarium from `Liturgy`, decide whether this minute belongs to an office, a work
+## block, or sleep. In a work block, `_resolve_work` asks `Labour` for a haul, construction or
+## production task and walks the person toward it — falling back to the Phase 3 greybox clearing
+## in `data/precinct.json` when there is nothing queued, which is what keeps the one-monk demo
+## unchanged with no buildings placed. Arrival executes the task (`_execute_task`): a labour
+## contribution to `Buildings` or `Production`, or a pickup/dropoff through `Hauling`.
 extends Node
 
 const PRECINCT_PATH := "res://data/precinct.json"
@@ -243,6 +243,15 @@ func _resolve_work(person: Person) -> Vector2i:
 ## A held task survives an office interruption unchanged (`SIMULATION_SPEC.md` §6.5's "suspend,
 ## resume later"), but not the building finishing, being demolished, or the haul task completing
 ## through someone else — those must be re-checked before we walk back to them.
+##
+## `build` never needs a periodic recheck beyond that: a construction site's `UNDER_CONSTRUCTION`
+## window is finite and ends the task on its own. A production site's `COMPLETE` state does not —
+## an unassigned pool worker who never re-checked would fell timber forever and could never be
+## pulled onto a haul task that outranks it, so `produce` only holds a pool worker (one not
+## `Buildings.assign_worker`-pinned to this same site) through the *current* batch; at the
+## batch boundary (`Production.contribute_labour` clears `active_recipe` between batches) they are
+## re-offered to `Labour` like anyone just going idle. A pinned crew is exempt — "assigned jobs...
+## outrank the queue" (§6.5) means they always come back to their own site regardless.
 func _task_still_valid(person: Person) -> bool:
 	if person.current_task.is_empty():
 		return true
@@ -250,6 +259,14 @@ func _task_still_valid(person: Person) -> bool:
 		"build":
 			var b := Buildings.get_building(int(person.current_task["building_id"]))
 			return b != null and b.construction_state == Building.State.UNDER_CONSTRUCTION
+		"produce":
+			var building_id := int(person.current_task["building_id"])
+			var b := Buildings.get_building(building_id)
+			if b == null or b.construction_state != Building.State.COMPLETE:
+				return false
+			if Buildings.building_for_worker(person.id) == building_id:
+				return true
+			return b.active_recipe != ""
 		"haul":
 			return not Hauling.get_task(int(person.current_task["task_id"])).is_empty()
 		_:
@@ -262,6 +279,8 @@ func _activity_for_current_task(person: Person) -> Person.Activity:
 			return Person.Activity.HAULING
 		"build":
 			return Person.Activity.BUILDING
+		"produce":
+			return Person.Activity.PRODUCING
 		_:
 			return Person.Activity.WORKING   # legacy fallback: the clearing
 
@@ -279,6 +298,12 @@ func _execute_task(person: Person) -> void:
 			if person.activity != Person.Activity.BUILDING:
 				return
 			Buildings.contribute_labour(
+				int(person.current_task["building_id"]), float(SimClock.MINUTES_PER_SUBSTEP) / 60.0
+			)
+		"produce":
+			if person.activity != Person.Activity.PRODUCING:
+				return
+			Production.contribute_labour(
 				int(person.current_task["building_id"]), float(SimClock.MINUTES_PER_SUBSTEP) / 60.0
 			)
 		"haul":
@@ -311,7 +336,7 @@ func _walking_activity(settled: Person.Activity) -> Person.Activity:
 	match settled:
 		Person.Activity.AT_OFFICE:
 			return Person.Activity.TO_CHURCH
-		Person.Activity.WORKING, Person.Activity.HAULING, Person.Activity.BUILDING:
+		Person.Activity.WORKING, Person.Activity.HAULING, Person.Activity.BUILDING, Person.Activity.PRODUCING:
 			return Person.Activity.TO_WORK
 		_:
 			return Person.Activity.IDLE

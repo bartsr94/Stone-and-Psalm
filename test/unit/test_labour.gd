@@ -1,5 +1,7 @@
 ## Task assignment policy: haul work outranks construction labour, and a frost-gated site is
 ## skipped rather than sending someone to stand at a stalled wall. `SIMULATION_SPEC.md` §6.5.
+## Extended 5.1 for production: an assigned worker at a staffed, producible site works it, and an
+## unassigned pool worker can pick up production ahead of construction labour.
 extends GutTest
 
 
@@ -97,6 +99,46 @@ func test_an_assigned_worker_falls_back_to_the_pool_while_their_site_awaits_mate
 
 	assert_eq(Buildings.building_for_worker(1), -1)
 	assert_true(Labour.request_task(_person_at(hut_site)).is_empty(), "nothing else queued either")
+
+
+func _completed_woodcutters_hut() -> int:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.deliver_material(id, "sawn_timber", 20)
+	Buildings.deliver_material(id, "nails", 4)
+	Buildings.contribute_labour(id, 200.0)   # far more than the 80h it needs
+	return id
+
+
+func test_an_assigned_worker_produces_at_their_own_complete_site() -> void:
+	var id := _completed_woodcutters_hut()
+	Buildings.assign_worker(id, 1)
+
+	var task := Labour.request_task(_person_at(Buildings.get_building(id).anchor))
+	assert_eq(task, {"kind": "produce", "building_id": id})
+
+
+func test_an_unassigned_worker_can_pick_up_production_ahead_of_construction() -> void:
+	var hut := _completed_woodcutters_hut()
+	var lodge_site := _open_site("masons_lodge")
+	var lodge := Buildings.place_building("masons_lodge", lodge_site)
+	Buildings.deliver_material(lodge, "sawn_timber", 40)
+	Buildings.deliver_material(lodge, "nails", 8)
+	assert_eq(Buildings.get_building(lodge).construction_state, Building.State.UNDER_CONSTRUCTION)
+
+	# Standing right at the lodge, so an unassigned worker choosing production over the (closer)
+	# construction site proves the priority ordering, not just proximity.
+	var task := Labour.request_task(_person_at(lodge_site))
+	assert_eq(task, {"kind": "produce", "building_id": hut})
+
+
+func test_a_haul_task_still_outranks_production_for_the_pool() -> void:
+	var hut := _completed_woodcutters_hut()   # COMPLETE and producible
+	Buildings.seed_building("open_stockpile", _open_site("open_stockpile"), 0, {"sawn_timber": 100, "nails": 20})
+	Buildings.place_building("masons_lodge", _open_site("masons_lodge"))   # PLANNED — still owes materials
+	Hauling.rebuild_tasks()   # queues a delivery task for the lodge, sourced from the stockpile
+
+	var task := Labour.request_task(_person_at(Buildings.get_building(hut).anchor))
+	assert_eq(task["kind"], "haul", "haul still outranks production for an unassigned worker")
 
 
 func test_the_nearest_construction_site_wins_when_several_are_open() -> void:
