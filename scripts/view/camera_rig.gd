@@ -60,6 +60,12 @@ func _ready() -> void:
 	_yaw_from = _yaw_radians
 	_yaw_to = _yaw_radians
 
+	# Start looking at the founding precinct rather than the map's centre — the dale is centred
+	# on the origin, but the house is off to one side of it.
+	position = Vector3(
+		Tuning.get_num("camera.start_focus_x_m"), 0.0, Tuning.get_num("camera.start_focus_z_m")
+	)
+
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_camera.near = Tuning.get_num("camera.near_m")
 	_camera.far = _camera_distance + Tuning.get_num("camera.far_margin_m")
