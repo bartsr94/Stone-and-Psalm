@@ -27,6 +27,7 @@ var _precinct: Dictionary = {}
 var _move_cells_per_substep: int = 22
 var _loaded_speed_factor: float = 0.7
 var _snow_speed_factor: float = 0.6
+var _road_speed_factor: float = 1.5
 var _plan_cache: Dictionary = {}       ## "day|class|order" -> day_plan
 var _pending_settle: Dictionary = {}   ## person id -> Activity; scratch, valid _decide→_advance within one substep
 
@@ -35,6 +36,7 @@ func _ready() -> void:
 	_move_cells_per_substep = Tuning.get_int("agents.move_cells_per_substep")
 	_loaded_speed_factor = Tuning.get_num("hauling.loaded_speed_factor")
 	_snow_speed_factor = Tuning.get_num("hauling.snow_speed_factor")
+	_road_speed_factor = Tuning.get_num("roads.speed_factor")
 	_load_precinct()
 	SimClock.substep_passed.connect(_on_substep)
 	# Phase 3 demo: found a one-monk house once the world exists.
@@ -316,14 +318,19 @@ func _walking_activity(settled: Person.Activity) -> Person.Activity:
 
 
 ## Effective cells moved this substep: the Phase 3 watchable pace, slowed while carrying a load
-## or crossing snow (`SIMULATION_SPEC.md` §10) — see `data/tuning.json`'s "hauling" comment for
-## why this scales the placeholder pace rather than switching to a real walking speed.
+## or crossing snow, sped up while on a road (`SIMULATION_SPEC.md` §10) — see `data/tuning.json`'s
+## "hauling" comment for why this scales the placeholder pace rather than switching to a real
+## walking speed. The road check reads the cell the person is already standing on, not every cell
+## the coming dash will cross — the same substep-uniform coarseness the other two factors already
+## have, not a new approximation.
 func _effective_move_cells(person: Person) -> int:
 	var factor := 1.0
 	if person.carrying_qty > 0:
 		factor *= _loaded_speed_factor
 	if Weather.is_snowing():
 		factor *= _snow_speed_factor
+	if Terrain.is_road(person.grid_pos.x, person.grid_pos.y):
+		factor *= _road_speed_factor
 	return maxi(1, int(round(float(_move_cells_per_substep) * factor)))
 
 

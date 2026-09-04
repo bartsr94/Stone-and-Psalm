@@ -20,13 +20,14 @@ func _ready() -> void:
 
 ## The whole game state as one Dictionary, systems always visited in the same order so the same
 ## state always produces the same document. `Tuning` and `Goods` are pure config and are not
-## saved; `Terrain` rebuilds from its preset (only later cell deltas would need storing, once
-## editing exists).
+## saved; `Terrain` rebuilds every other array from its preset and saves only its roads, the one
+## piece of terrain state a player actually edits (Phase 4.10).
 func capture() -> Dictionary:
 	return {
 		"schema_version": SCHEMA_VERSION,
 		"systems": {
 			"SimClock": SimClock.serialize(),
+			"Terrain": Terrain.serialize(),
 			"Weather": Weather.serialize(),
 			"Liturgy": Liturgy.serialize(),
 			"Population": Population.serialize(),
@@ -48,6 +49,8 @@ func restore(state: Dictionary) -> bool:
 	var systems: Dictionary = state.get("systems", {})
 	if systems.has("SimClock"):
 		SimClock.deserialize(systems["SimClock"])
+	if systems.has("Terrain"):
+		Terrain.deserialize(systems["Terrain"])
 	if systems.has("Weather"):
 		Weather.deserialize(systems["Weather"])
 	if systems.has("Liturgy"):

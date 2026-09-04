@@ -16,6 +16,8 @@
 ## (`SIMULATION_SPEC.md` §19) need storing.
 extends Node
 
+signal road_changed(x: int, y: int, is_road: bool)
+
 const PRESETS_PATH := "res://data/terrain_presets.json"
 const FOUNDING_PRESET := "founding_valley"
 
@@ -29,6 +31,12 @@ var _terrain := PackedByteArray()
 var _water := PackedByteArray()
 var _water_level := PackedFloat32Array()
 var _forest_density := PackedFloat32Array()
+
+## Player-built roads (Phase 4.10) — the one piece of terrain state that is not derived from the
+## preset, and so the one piece this autoload actually has to save (§19; every other array is
+## rebuilt fresh by `build_preset`).
+var _road := PackedByteArray()
+var _road_move_cost_factor: float = 0.5
 
 # The cross-section of each column down the dale, one entry per cell along the valley.
 var _river_centre := PackedFloat32Array()
@@ -46,6 +54,7 @@ var _dirty_chunks: Dictionary = {}
 
 
 func _ready() -> void:
+	_road_move_cost_factor = Tuning.get_num("roads.move_cost_factor")
 	build_preset(FOUNDING_PRESET)
 
 
@@ -128,6 +137,39 @@ func forest_density_at(x: int, y: int) -> float:
 	return _forest_density[y * _cells_across + x]
 
 
+# --- roads (Phase 4.10) -----------------------------------------------------------------------
+
+func is_road(x: int, y: int) -> bool:
+	if not is_inside(x, y):
+		return false
+	return _road[y * _cells_across + x] != 0
+
+
+## Builds or removes a road on a walkable cell. A no-op off the map or on unwalkable ground (the
+## river, or too steep) — a road cannot make a cell buildable that the terrain itself refuses.
+## Emits `road_changed` only on an actual change, so a renderer never has to re-check state that
+## did not move.
+func set_road(x: int, y: int, value: bool) -> void:
+	if not is_inside(x, y) or (value and not is_walkable(x, y)):
+		return
+	var index := y * _cells_across + x
+	var was := _road[index] != 0
+	if was == value:
+		return
+	_road[index] = 1 if value else 0
+	road_changed.emit(x, y, value)
+
+
+## Every built road cell, sorted so an iteration order never depends on how they were added.
+func road_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for y in _cells_across:
+		for x in _cells_across:
+			if is_road(x, y):
+				cells.append(Vector2i(x, y))
+	return cells
+
+
 ## The world position of a cell's centre, at its own elevation. The map is centred on the world
 ## origin, so the camera starts mid-dale.
 func cell_to_world(x: int, y: int) -> Vector3:
@@ -196,14 +238,23 @@ func is_walkable_cell(cell: Vector2i) -> bool:
 func move_cost(from_cell: Vector2i, to_cell: Vector2i) -> float:
 	var diff := to_cell - from_cell
 	var base: float = _cell_size_m * (Pathfinder._SQRT2 if diff.x != 0 and diff.y != 0 else 1.0)
-	var terrain_factor: float = _TERRAIN_MOVE_FACTOR.get(terrain_at(to_cell.x, to_cell.y), 1.5)
+	# A road overrides the terrain-type factor entirely — it is cheaper than every natural
+	# terrain (including "built", 0.7), so the pathfinder actively routes onto one rather than
+	# merely accepting it, which is what makes roads "a genuine investment" (SIMULATION_SPEC.md
+	# §10) instead of a cosmetic.
+	var terrain_factor: float = (
+		_road_move_cost_factor if is_road(to_cell.x, to_cell.y)
+		else _TERRAIN_MOVE_FACTOR.get(terrain_at(to_cell.x, to_cell.y), 1.5)
+	)
 	var slope_penalty: float = 1.0 + _slope_weight() * slope_radians_at(to_cell.x, to_cell.y)
 	return base * terrain_factor * slope_penalty
 
 
-## The cheapest possible single step, for the pathfinder's heuristic scale.
+## The cheapest possible single step, for the pathfinder's heuristic scale. Must never exceed the
+## true cheapest cost anywhere on the map or A*'s heuristic stops being admissible — since a road
+## can be cheaper than "built" terrain, that is the one this compares against, not `_TERRAIN_MOVE_FACTOR` alone.
 func min_step_cost() -> float:
-	return _cell_size_m * _TERRAIN_MOVE_FACTOR[TerrainTypes.Terrain.BUILT]
+	return _cell_size_m * minf(_TERRAIN_MOVE_FACTOR[TerrainTypes.Terrain.BUILT], _road_move_cost_factor)
 
 
 func _walk_slope_limit() -> float:
@@ -273,6 +324,10 @@ func _build(preset: Dictionary) -> void:
 	_water.resize(count)
 	_water_level.resize(count)
 	_forest_density.resize(count)
+	# Resize alone would keep old values if the new preset is the same size as the last one — a
+	# rebuild must start with no roads, not whatever the previous world had.
+	_road.resize(count)
+	_road.fill(0)
 
 	var broad := FastNoiseLite.new()
 	broad.seed = int(noise_settings["seed"])
@@ -431,3 +486,22 @@ func _build_cover(
 			elif kind == TerrainTypes.Terrain.MOOR:
 				density = moor_density
 			_forest_density[index] = 0.0 if is_river else density
+
+
+# --- save / load ---------------------------------------------------------------------------
+
+## Only the roads — every other array is deterministically rebuilt by `build_preset`, per this
+## file's own doc comment. A sparse cell list rather than the full grid, since roads are a small
+## fraction of a 192² map even in a mature precinct.
+func serialize() -> Dictionary:
+	var cells: Array = []
+	for cell in road_cells():
+		cells.append([cell.x, cell.y])
+	return {"roads": cells}
+
+
+func deserialize(data: Dictionary) -> void:
+	for cell in road_cells():
+		set_road(cell.x, cell.y, false)
+	for pair in data.get("roads", []):
+		set_road(int(pair[0]), int(pair[1]), true)

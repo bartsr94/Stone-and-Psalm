@@ -11,6 +11,10 @@ var _camera: Camera3D = null
 
 
 func before_each() -> void:
+	# The headless test runner's dummy viewport defaults to a tiny 64x64 — small enough that a
+	# corner-anchored HUD panel sized for a real window can cover the whole thing and swallow a
+	## screen-centre click before it ever reaches _unhandled_input. Match the real window size.
+	get_tree().root.size = Vector2i(1600, 900)
 	var scene: Node = add_child_autofree(load(MAIN_SCENE).instantiate())
 	_placement = scene.find_child("BuildingPlacement", true, false) as BuildingPlacement
 	_camera = scene.find_child("Camera3D", true, false) as Camera3D
@@ -49,6 +53,14 @@ func _mouse_move(pos: Vector2) -> InputEventMouseMotion:
 func _send(event: InputEvent) -> void:
 	Input.parse_input_event(event)
 	await wait_process_frames(2)
+	# A mouse button, unlike the wheel, has real sustained "held" state — Godot never sees this
+	# one released, so a second synthetic click later in the same test (or in the next test:
+	# Input's button state is not scene-scoped) can silently fail to re-report as "just pressed".
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		var release := event.duplicate() as InputEventMouseButton
+		release.pressed = false
+		Input.parse_input_event(release)
+		await wait_process_frames(2)
 
 
 func _screen_centre() -> Vector2:
@@ -101,6 +113,42 @@ func test_clicking_agrees_with_buildings_can_place() -> void:
 		assert_eq(after, before + 1, "a valid site places a building")
 	else:
 		assert_eq(after, before, "an invalid site places nothing")
+
+
+func test_cycling_all_the_way_round_reaches_the_road_type() -> void:
+	await _send(_key_press(KEY_B))
+	var ids := _placement.type_ids()
+	for _i in ids.size() - 1:
+		await _send(_key_press(KEY_TAB))
+	assert_eq(_placement.current_type_id(), BuildingPlacement.ROAD_TYPE_ID, "the road is last in the cycle")
+	assert_true(_placement.is_road_selected())
+
+
+func test_clicking_with_the_road_type_selected_agrees_with_terrain_is_walkable() -> void:
+	await _send(_key_press(KEY_B))
+	var ids := _placement.type_ids()
+	for _i in ids.size() - 1:
+		await _send(_key_press(KEY_TAB))
+	await _send(_mouse_move(_screen_centre()))
+	assert_true(_placement.has_hover())
+	assert_true(_placement.is_road_selected())
+
+	# The ray hits the ground surface regardless of walkability (a road ghost can still hover
+	# over the river or a steep slope, coloured invalid) — only a walkable cell can actually
+	# become a road, the same "agrees with the headless rule" shape as the building click test.
+	var cell := _placement.hover_cell()
+	var was_road := Terrain.is_road(cell.x, cell.y)
+	var walkable := Terrain.is_walkable(cell.x, cell.y)
+
+	await _send(_mouse_click(MOUSE_BUTTON_LEFT))
+
+	if walkable:
+		assert_eq(Terrain.is_road(cell.x, cell.y), not was_road, "a walkable cell's road toggled")
+	else:
+		assert_eq(Terrain.is_road(cell.x, cell.y), was_road, "an unwalkable cell never becomes a road")
+
+	# Leave the terrain as this test found it.
+	Terrain.set_road(cell.x, cell.y, was_road)
 
 
 func test_clicks_before_b_are_ignored() -> void:
