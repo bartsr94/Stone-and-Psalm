@@ -8,7 +8,8 @@
 extends Node3D
 
 const SETTINGS_PATH := "res://data/vegetation.json"
-const MATERIAL_PATH := "res://assets/materials/m_stone_and_psalm.tres"
+const DECIDUOUS_MATERIAL_PATH := "res://assets/materials/m_vegetation_deciduous.tres"
+const EVERGREEN_MATERIAL_PATH := "res://assets/materials/m_vegetation_evergreen.tres"
 const TREE_POSITION_SALT: int = 0x2B992DD1
 const SCRUB_POSITION_SALT: int = 0x4C957F2D
 const ROCK_POSITION_SALT: int = 0x7A3E91B7
@@ -24,14 +25,47 @@ const REEDS_SAMPLE_SALT: int = 0x4FDA3B6F
 
 var _settings: Dictionary = {}
 var _models: Dictionary = {}
-var _material: Material = null
+var _deciduous_material: ShaderMaterial = null
+var _evergreen_material: ShaderMaterial = null
+var _seasons := SeasonBlender.new()
 
 
 func _ready() -> void:
 	if not _load_settings():
 		return
-	_material = load(MATERIAL_PATH)
+	_deciduous_material = load(DECIDUOUS_MATERIAL_PATH)
+	_evergreen_material = load(EVERGREEN_MATERIAL_PATH)
 	_populate()
+
+	SimClock.day_passed.connect(_on_day_passed)
+	_apply_season()
+
+
+func _on_day_passed(_day_of_year: int) -> void:
+	_apply_season()
+
+
+## Pushes the day's foliage look into the two vegetation materials: the season's canopy tint
+## (or a bare twig-brown once the broadleaves have dropped) and the snow dusting. The
+## MultiMesh transforms never change with the season — only these uniforms do.
+func _apply_season() -> void:
+	var state := _seasons.sample(SimClock.day_of_year())
+	if state.is_empty():
+		return
+
+	var snow: float = state["snow_coverage"]
+	var bare: bool = state["broadleaf_bare"]
+
+	if bare:
+		_deciduous_material.set_shader_parameter("foliage_tint", Color("#5b4a38"))
+		_deciduous_material.set_shader_parameter("foliage_recolor", 0.92)
+	else:
+		_deciduous_material.set_shader_parameter("foliage_tint", state["broadleaf_tint"])
+		_deciduous_material.set_shader_parameter("foliage_recolor", 0.85)
+	_deciduous_material.set_shader_parameter("snow_amount", snow)
+
+	_evergreen_material.set_shader_parameter("foliage_tint", state["pine_tint"])
+	_evergreen_material.set_shader_parameter("snow_amount", snow)
 
 
 func _load_settings() -> bool:
@@ -139,14 +173,16 @@ func _populate() -> void:
 			if VegetationLayout.should_place(float(_settings["reed_density"]), seed, x, y, REEDS_POSITION_SALT):
 				reeds_transforms.append(_transform_for_cell(x, y, seed, reeds_settings, REEDS_POSITION_SALT))
 
-	add_child(_make_multimesh_instance("Trees", _prop_mesh("tree_broadleaf"), broadleaf_transforms))
-	add_child(_make_multimesh_instance("Pines", _prop_mesh("tree_pine"), pine_transforms))
-	add_child(_make_multimesh_instance("Scrub", _prop_mesh("scrub"), scrub_transforms))
-	add_child(_make_multimesh_instance("Rocks", _prop_mesh("rock"), rock_transforms))
-	add_child(_make_multimesh_instance("Stumps", _prop_mesh("stump"), stump_transforms))
-	add_child(_make_multimesh_instance("FallenLogs", _prop_mesh("fallen_log"), fallen_log_transforms))
-	add_child(_make_multimesh_instance("Ferns", _prop_mesh("fern"), fern_transforms))
-	add_child(_make_multimesh_instance("Reeds", _prop_mesh("reeds"), reeds_transforms))
+	# Broadleaves and scrub take the season's canopy colour; pines and the woody understorey
+	# props barely shift and share the evergreen material.
+	add_child(_make_multimesh_instance("Trees", _prop_mesh("tree_broadleaf"), broadleaf_transforms, _deciduous_material))
+	add_child(_make_multimesh_instance("Scrub", _prop_mesh("scrub"), scrub_transforms, _deciduous_material))
+	add_child(_make_multimesh_instance("Ferns", _prop_mesh("fern"), fern_transforms, _deciduous_material))
+	add_child(_make_multimesh_instance("Pines", _prop_mesh("tree_pine"), pine_transforms, _evergreen_material))
+	add_child(_make_multimesh_instance("Rocks", _prop_mesh("rock"), rock_transforms, _evergreen_material))
+	add_child(_make_multimesh_instance("Stumps", _prop_mesh("stump"), stump_transforms, _evergreen_material))
+	add_child(_make_multimesh_instance("FallenLogs", _prop_mesh("fallen_log"), fallen_log_transforms, _evergreen_material))
+	add_child(_make_multimesh_instance("Reeds", _prop_mesh("reeds"), reeds_transforms, _evergreen_material))
 
 
 func _woodland_eligible(x: int, y: int, tree_slope: float) -> bool:
@@ -228,7 +264,8 @@ func _transform_for_cell(
 func _make_multimesh_instance(
 	node_name: String,
 	mesh: Mesh,
-	transforms: Array[Transform3D]
+	transforms: Array[Transform3D],
+	material: Material
 ) -> MultiMeshInstance3D:
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
@@ -240,7 +277,7 @@ func _make_multimesh_instance(
 	var instance := MultiMeshInstance3D.new()
 	instance.name = node_name
 	instance.multimesh = multimesh
-	instance.material_override = _material
+	instance.material_override = material
 	return instance
 
 

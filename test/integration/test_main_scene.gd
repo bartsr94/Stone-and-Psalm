@@ -195,14 +195,34 @@ func test_vegetation_renderer_has_batched_categories() -> void:
 		assert_not_null(instances, "%s MultiMesh exists" % category)
 		assert_not_null(instances.multimesh, "%s has a MultiMesh" % category)
 		assert_not_null(instances.multimesh.mesh, "%s has a prop mesh" % category)
+		var material := instances.material_override as ShaderMaterial
+		assert_not_null(material, "%s uses a vegetation ShaderMaterial" % category)
 		assert_eq(
-			(instances.material_override as Material).resource_path,
-			"res://assets/materials/m_stone_and_psalm.tres",
-			"%s uses the shared material" % category
+			material.shader.resource_path,
+			"res://assets/materials/veg_foliage.gdshader",
+			"%s draws the shared vegetation foliage shader" % category
 		)
 	for populated in ["Trees", "Scrub", "Rocks", "Stumps", "FallenLogs", "Ferns", "Reeds"]:
 		var instances: MultiMeshInstance3D = renderer.find_child(populated, true, false) as MultiMeshInstance3D
 		assert_gt(instances.multimesh.instance_count, 0, "%s has visible instances" % populated)
+
+
+func test_vegetation_foliage_follows_the_season() -> void:
+	var renderer: Node3D = _find("VegetationRenderer") as Node3D
+	var trees := renderer.find_child("Trees", true, false) as MultiMeshInstance3D
+	var material := trees.material_override as ShaderMaterial
+
+	# before_each pins midsummer: broadleaves in full leaf, no snow.
+	assert_almost_eq(float(material.get_shader_parameter("snow_amount")), 0.0, 0.001, "no snow in summer")
+	var summer_tint: Color = material.get_shader_parameter("foliage_tint")
+	assert_gt(summer_tint.g, summer_tint.r, "summer canopy is green")
+
+	# Deep winter: bare, and under snow.
+	SimClock.deserialize({"abs_minute": (20 - 75 + 365) * 1440.0, "speed_index": 0})
+	renderer.call("_apply_season")
+	assert_gt(float(material.get_shader_parameter("snow_amount")), 0.6, "canopy takes snow in winter")
+	var winter_tint: Color = material.get_shader_parameter("foliage_tint")
+	assert_gt(winter_tint.r, winter_tint.g, "bare winter canopy is twig-brown, not green")
 
 
 func test_vegetation_samples_are_jittered_inside_stride_tiles() -> void:
