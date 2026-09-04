@@ -19,6 +19,9 @@ func before_each() -> void:
 	# well up, and the environment assertions below do not depend on which test ran last.
 	SimClock.deserialize({"abs_minute": (172 - 75) * 1440.0 + 720.0, "speed_index": 0})
 	_scene = add_child_autofree(load(MAIN_SCENE).instantiate())
+	# The HUD starts the clock at 1x on ready; hold it still again so time does not drift while
+	# a test inspects the sun.
+	SimClock.set_speed_index(0)
 
 
 func _find(node_name: String) -> Node:
@@ -120,6 +123,24 @@ func test_sky_cycle_uses_a_private_environment_copy() -> void:
 	# It deep-duplicates the Environment on ready so runtime changes never touch the .tres.
 	var env: Environment = (_find("WorldEnvironment") as WorldEnvironment).environment
 	assert_eq(env.resource_path, "", "the live environment is an unsaved duplicate")
+
+
+func test_hud_shows_the_clock_and_drives_speed() -> void:
+	var hud: CanvasLayer = _find("Hud") as CanvasLayer
+	assert_not_null(hud, "the HUD is in the scene")
+
+	assert_true(hud.has_method("speed_buttons"), "it is the HUD script")
+	var buttons: Array = hud.call("speed_buttons")
+	assert_eq(buttons.size(), 4, "pause, 1x, 3x, 10x")
+
+	# Press 3x and the clock follows; the button reflects the state.
+	(buttons[2] as Button).pressed.emit()
+	assert_eq(SimClock.speed_index(), 2, "the 3x button set the clock speed")
+	assert_true((buttons[2] as Button).button_pressed, "and shows as the active speed")
+	assert_false((buttons[1] as Button).button_pressed, "1x is no longer active")
+
+	(buttons[0] as Button).pressed.emit()
+	assert_eq(SimClock.speed_index(), 0, "the pause button stopped the clock")
 
 
 func test_no_baked_global_illumination() -> void:
