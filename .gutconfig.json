@@ -1,0 +1,8 @@
+{
+  "dirs": ["res://test/unit", "res://test/integration", "res://test/soak"],
+  "prefix": "test_",
+  "suffix": ".gd",
+  "log_level": 1,
+  "gexit": true,
+  "gignore_pause": true
+}
