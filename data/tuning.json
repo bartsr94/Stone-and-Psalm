@@ -1,0 +1,26 @@
+{
+  "_comment": "Every balance constant and every fixed 3D convention in the game. No magic numbers in .gd files, ever — see CLAUDE.md and docs/ARCHITECTURE_GUIDE.md §6. Values are addressed by dotted path: Tuning.get_num(\"camera.pitch_deg\"). All lengths are metres, because 1 unit = 1 metre.",
+
+  "world": {
+    "_comment": "The conventions table in docs/ARCHITECTURE_GUIDE.md §4. Changing any of these later means remaking every asset, so they are recorded here once and read from here everywhere.",
+    "terrain_cell_m": 2.0,
+    "building_snap_m": 1.0
+  },
+
+  "camera": {
+    "_comment": "The orthographic rig, docs/ARCHITECTURE_GUIDE.md §4. Pitch, yaw step and the ortho range are conventions rather than taste — the rest is feel and can be tuned freely. distance_m is the exception: because the projection is orthographic it has no effect on apparent size, but volumetric fog and the shadow range are both measured from the camera, so a distant camera drowns the whole scene in fog and pushes it past directional_shadow_max_distance. Keep it just large enough to clear the geometry at the widest zoom.",
+    "pitch_deg": 40.0,
+    "yaw_step_deg": 90.0,
+    "yaw_step_count": 4,
+    "yaw_turn_seconds": 0.25,
+    "ortho_size_min_m": 20.0,
+    "ortho_size_max_m": 160.0,
+    "ortho_size_start_m": 60.0,
+    "zoom_step_factor": 1.15,
+    "zoom_smoothing_rate": 12.0,
+    "pan_screens_per_sec": 0.8,
+    "distance_m": 150.0,
+    "near_m": 0.05,
+    "far_margin_m": 400.0
+  }
+}

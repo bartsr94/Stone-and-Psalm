@@ -48,7 +48,7 @@ Start-Process -FilePath "C:\Users\Bart\Documents\Godot_v4.6.1-stable_win64.exe" 
   -Wait -NoNewWindow; Get-Content "test_results.txt"
 ```
 
-Three gotchas — two paid for once elsewhere in this portfolio, one paid for here:
+Four gotchas — two paid for once elsewhere in this portfolio, two paid for here:
 
 - **Never pipe Godot headless output with `*>&1`** — it hangs in PowerShell (vagrant-star).
   Use `-RedirectStandardOutput`.
@@ -58,6 +58,10 @@ Three gotchas — two paid for once elsewhere in this portfolio, one paid for he
   --import --path .`. Without it GUT's `class_name`s aren't resolved and every run fails with
   "Some GUT class_names have not been imported." Only needed once per clone — `.godot/` then
   holds the cache and stays untracked.
+- **GUT reports an unloadable test file as a warning, not a failure**, and still prints "All
+  tests passed". A new script carrying a `class_name` does not resolve until Godot re-imports,
+  so a test using it is skipped silently. **Re-import after adding any `class_name`, and check
+  the warning count, not just the pass line.**
 
 ---
 

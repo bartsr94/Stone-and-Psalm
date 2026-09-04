@@ -1,0 +1,34 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/environment/valley_environment.tscn" id="1_wbupf"]
+[ext_resource type="Material" path="res://assets/materials/m_greybox_grass.tres" id="2_7tdlr"]
+[ext_resource type="Material" path="res://assets/materials/m_greybox_limestone.tres" id="3_tt8nk"]
+[ext_resource type="Script" path="res://scripts/view/camera_rig.gd" id="4_6r0uj"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_j0r68"]
+material = ExtResource("2_7tdlr")
+size = Vector2(400, 400)
+subdivide_width = 40
+subdivide_depth = 40
+
+[sub_resource type="BoxMesh" id="BoxMesh_j0vxu"]
+material = ExtResource("3_tt8nk")
+size = Vector3(8, 5, 12)
+
+[node name="Valley" type="Node3D" unique_id=198034832]
+
+[node name="ValleyEnvironment" type="Node3D" parent="." unique_id=620269046 instance=ExtResource("1_wbupf")]
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=1149745472]
+mesh = SubResource("PlaneMesh_j0r68")
+
+[node name="GreyboxBuilding" type="MeshInstance3D" parent="." unique_id=1169879358]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+mesh = SubResource("BoxMesh_j0vxu")
+
+[node name="CameraRig" type="Node3D" parent="." unique_id=859856831]
+script = ExtResource("4_6r0uj")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig" unique_id=620120870]
+projection = 1
+size = 60.0

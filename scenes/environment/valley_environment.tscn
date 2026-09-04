@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Environment" path="res://scenes/environment/valley_environment.tres" id="1_k3u6c"]
+
+[node name="ValleyEnvironment" type="Node3D" unique_id=620269046]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1917205060]
+environment = ExtResource("1_k3u6c")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=541353010]
+transform = Transform3D(-0.70710677, 0.33196652, -0.6243382, 0, 0.88294756, 0.46947157, 0.70710677, 0.33196652, -0.6243382, 0, 0, 0)
+light_color = Color(1, 0.91, 0.79, 1)
+light_energy = 1.6
+shadow_enabled = true
+directional_shadow_max_distance = 150.0

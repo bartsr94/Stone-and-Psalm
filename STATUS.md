@@ -1,16 +1,16 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 0 (project not yet created)
+**Test count:** 47 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 0 — Foundations** ← current
+**Phase 0 — Foundations** ← current, all but task 0.7 done
 
-Design documentation complete. No Godot project exists yet.
+A lit 3D scene renders with a working orthographic camera. Phase 1 — The Valley — is next.
 
 ---
 
@@ -46,31 +46,41 @@ Design documentation complete. No Godot project exists yet.
 | 0.2 | Folder scaffold | ✅ Done | Architecture Guide §3 tree created, `.gitkeep`'d where empty |
 | 0.3 | Install GUT 9.6.0, verify headless, pin | ✅ Done | Vendored into `addons/gut/`; 1/1 smoke test passes headless on 4.6.1 |
 | 0.4 | Git init + `.gitignore` | ✅ Done | Repo existed with docs commit; `.gitignore` merged, LFS added after |
-| 0.5 | Fix 3D conventions in code | 🔲 Not started | Architecture Guide §4 |
-| 0.6 | Orthographic camera rig | 🔲 Not started | Most-used code in the game |
-| 0.7 | Vendor greybox kit into `assets/kit/` | 🔲 Not started | Permissive licence; record it |
-| 0.8 | `WorldEnvironment` v0 | 🔲 Not started | |
+| 0.5 | Fix 3D conventions in code | ✅ Done | `data/tuning.json` + `autoloads/tuning.gd`; locked by `test_tuning.gd` |
+| 0.6 | Orthographic camera rig | ✅ Done | `scripts/view/camera_rig.gd`; pan, 90° yaw steps, zoom clamp |
+| 0.7 | Vendor greybox kit into `assets/kit/` | 🔲 Not started | **Decision needed.** Not required for Phase 0 — the greybox building is a `BoxMesh` |
+| 0.8 | `WorldEnvironment` v0 | ✅ Done | `scenes/environment/`; sky, sun, SSAO, SSIL, volumetric fog |
 | 0.9 | Verify the test command, record it in CLAUDE.md | ✅ Done | Command in CLAUDE.md works verbatim; a fresh checkout needs one `--headless --import` pass first (generates GUT's class_name cache) — not needed again after |
 
 ---
 
 ## Start here next session
 
-Docs are complete, the art pipeline is verified, and the Godot project exists: `project.godot`,
-the full folder scaffold, and GUT 9.6.0 pinned and passing headless.
+**Phase 0 is complete except task 0.7**, and its exit criteria are met: `Ctrl+F5` opens a lit 3D
+scene with a ground plane, one greybox building, and a working orthographic camera. 47 tests pass
+headless. Screenshot at `docs/screenshots/phase0_camera_rig.png`.
 
-Remaining, in order (Roadmap Phase 0):
+Two things before Phase 1:
 
 | # | Task | Note |
 |---|---|---|
-| 0.7 | Choose and vendor a greybox kit into `assets/kit/` | **Decision needed** — Kenney medieval/survival (CC0) is the leading candidate. Record the licence in `assets/kit/LICENCE.md` |
-| 0.5 | Fix the 3D conventions in code | Architecture Guide §4 |
-| 0.6 | Orthographic camera rig — 40° pitch, 90° yaw steps | The most-used code in the game |
-| 0.8 | `WorldEnvironment` v0 — sun, sky, SSAO, fog | Rough is fine; Phase 2 makes it good |
+| 0.7 | Choose and vendor a greybox kit into `assets/kit/` | **Decision needed** — Kenney medieval/survival (CC0) is the leading candidate. Record the licence in `assets/kit/LICENCE.md`. Not blocking: Phase 0's building is a `BoxMesh`, and nothing needs a kit until real building types arrive in Phase 4 |
+| — | Open the project in the editor once | Everything so far was authored headlessly. The editor will rewrite `.tscn`/`.tres` with resource UIDs on first save — expect one noisy diff, and let it happen in its own commit |
 
-**Once godot-mcp is live in-session** (needs a VS Code restart to pick up `.mcp.json` — see
-Environment notes), 0.6 and 0.8 are the first tasks worth driving through it: opening the editor,
-running the scene, and taking the Phase 1 screenshot.
+**Then Phase 1 — The Valley**, and its exit criterion is a screenshot you actually like. If it
+isn't attractive, iterate there rather than moving on. Start with 1.1/1.2 (`Terrain` autoload and
+chunked mesh generation) but budget real time for 1.7, the lighting pass — Phase 0 already showed
+how much of the look comes from the environment rather than the geometry.
+
+### Screenshots
+
+`tools/screenshot.gd` renders a scene to a PNG, for the screenshot every phase's exit criteria
+require. Must run **windowed, not headless** — the dummy renderer produces no image:
+
+```powershell
+& "C:\Users\Bart\Documents\Godot_v4.6.1-stable_win64.exe" --path . `
+  -s tools/screenshot.gd -- res://scenes/world/main.tscn res://docs/screenshots/name.png
+```
 
 **Then Phase 1 is the valley, and its exit criterion is a screenshot you actually like.** If it
 isn't attractive, iterate there rather than moving on — nothing later fixes a valley that looks
@@ -208,6 +218,48 @@ which closes the "no Blender pipeline verified" blocker:
 3. **Blender exits 0 even when a Python script raises an unhandled exception.** A validator that
    "passes" because it crashed is worse than no validator. All three scripts now catch and
    `sys.exit(1)`.
+
+### 2026-09-04 — An orthographic camera should sit as close as the geometry allows
+
+The first render of the Phase 0 scene was a flat brown haze with the box barely visible. The
+cause was the camera's distance, which had been set to 300 m on the reasoning that for an
+orthographic projection distance does not affect apparent size — which is true, and is exactly
+what makes it easy to set carelessly.
+
+**Volumetric fog and `directional_shadow_max_distance` are both measured from the camera.** At
+300 m every object in the scene sat beyond `volumetric_fog_length`, so all of it received the
+full fog accumulation — at the authored density that left roughly 15% of the surface colour
+intact. The shadow range of 150 m was likewise meaningless.
+
+Fixed by dropping `camera.distance_m` to **150 m** — enough to clear the geometry at the widest
+zoom, computed rather than guessed:
+
+| Constraint | Working |
+|---|---|
+| Ground visible up the screen at 160 m ortho | 160 / sin 40° ≈ 249 m, so ~124 m in front of the focus |
+| That ground's depth from the camera | 150 − 124·cos 40° ≈ 55 m, comfortably inside the near plane |
+| Tall geometry (a 30 m tower) | closer by 30·sin 40° ≈ 19 m, still clear |
+
+Fog density also dropped from 0.015 to **0.004** over a 512 m length, which reads as haze in the
+distance rather than a veil over everything. The reasoning is recorded in `data/tuning.json`
+beside the value, because the next person to raise the distance will have the same good reason
+for doing it.
+
+**Method worth repeating:** the fix came from rendering a sweep of variants and looking at them,
+not from reading the code. `tools/screenshot.gd` exists so that stays cheap.
+
+### 2026-09-04 — Two bugs only a render would have found
+
+Both were invisible to the test suite as written, and both are now covered by it:
+
+1. **The ground ran out at the widest zoom.** A 200 m plane does not fill a 160 m ortho view: the
+   40° pitch stretches the vertical extent across the ground by 1/sin 40°, needing ~249 m, and
+   the 16:9 aspect needs ~284 m across. Plane is now 400 m (200 cells), and
+   `test_ground_covers_the_widest_zoom` computes the requirement rather than hard-coding it.
+2. **GUT silently skipped a whole test file and still reported "All tests passed".** A new script
+   with a `class_name` does not resolve until Godot has re-imported, and an unparseable test file
+   is reported as a one-line warning rather than a failure. **Read the warning count, not just
+   the pass line** — and re-import after adding any `class_name`.
 
 ### 2026-09-04 — Git LFS from day zero
 
