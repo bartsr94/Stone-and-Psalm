@@ -1,31 +1,35 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 252 passing (GUT 9.6.0, headless)
+**Test count:** 264 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 4 — Build and Haul** ← simulation core and mouse-driven placement built and tested on
-branch `phase-4-placement-ui` (built on `phase-4-build-and-haul`, merged to `main`); the
-worker-assignment UI, roads and true partial-construction models are not, so the phase is not
-closed out.
+**Phase 4 — Build and Haul** ← simulation core, mouse-driven placement, and roads built and
+tested on branch `phase-4-roads` (built on `phase-4-placement-ui`, merged to `main`); the
+worker-assignment UI and true partial-construction models are not, so the phase is not closed
+out.
 
-Goods, building types, placement (now a real ghost-preview UI, not just a headless API), the
+Goods, building types, placement (a real ghost-preview UI, not just a headless API), the
 construction state machine, the frost gate, local building inventories (no global pool),
-hauling, and task assignment are all built and tested — `test_goods.gd`, `test_construction.gd`,
-`test_buildings.gd`, `test_hauling.gd`, `test_labour.gd`, `test_terrain_ray.gd`,
+hauling, task assignment, and roads are all built and tested — `test_goods.gd`,
+`test_construction.gd`, `test_buildings.gd`, `test_hauling.gd`, `test_labour.gd`,
+`test_terrain_ray.gd`, `test_terrain_roads.gd`, `test_population_road_speed.gd`,
 `test_build_input_map.gd`, `test_building_placement_runtime.gd`, and the day-in-the-life
 `test_build_and_haul.gd` (two conversi haul timber and nails from a stocked stockpile and raise a
 granary; a mortar building stalls in a hard frost and resumes once it passes). A greybox
 `BuildingsRenderer` draws every placed building — rising from a staked plot to full height as
-`build_progress` climbs, roofed once `COMPLETE` — and a carried sack shows on a hauler's back.
-Press `B` to place: `Tab` cycles the type, `R` rotates, left click confirms on a green (valid) or
-red (invalid) ghost, `Escape` cancels. `docs/screenshots/phase4_construction_site.png` is the
-demo site three simulated days in; `docs/screenshots/phase4_placement_ghost.png` is the
-ghost-preview UI mid-placement. **Start here next session** below has what is still open.
+`build_progress` climbs, roofed once `COMPLETE`; a `RoadsRenderer` draws every road cell as a
+flat plate; a carried sack shows on a hauler's back. Press `B` to place: `Tab` cycles buildings
+then a single-cell road, `R` rotates, left click confirms on a green (valid) or red (invalid)
+ghost, `Escape` cancels. Roads are cheaper to cross than any natural terrain — the pathfinder
+actively routes onto one, and a person standing on one covers more ground per substep.
+`docs/screenshots/phase4_construction_site.png` is the demo site three simulated days in;
+`phase4_placement_ghost.png` is the ghost-preview UI mid-placement; `phase4_road.png` is a built
+road beside the assart clearing. **Start here next session** below has what is still open.
 
 **Phase 3 — One Monk Walking** — complete on branch `phase-3-one-monk-walking` (merged to `main`)
 
@@ -55,7 +59,7 @@ items, not Phase 2 regressions.
 |---|---|---|
 | M1 — It's a place | 0–2 | 🟡 Phases 0 done, 1 built (exit gate unsigned), 2 done |
 | M2 — It's alive | 3 | 🟢 Built — a monk lives the Office; the Horarium shows why it matters |
-| M3 — It's a settlement | 4–5 | 🟡 Phase 4 sim + placement UI built and tested; worker UI, roads, staged models still open |
+| M3 — It's a settlement | 4–5 | 🟡 Phase 4 sim, placement UI and roads built and tested; worker UI and staged models still open |
 | M4 — It's a monastery ★ vertical slice | 6 | 🔲 Not started |
 | M5 — It's a game | 7–10 | 🔲 Not started |
 | M6 — It's finished | 11–12 | 🔲 Not started |
@@ -137,8 +141,8 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ## Start here next session
 
-**Phase 4's simulation core and placement UI are built and tested on `phase-4-placement-ui`,
-built on the merged `phase-4-build-and-haul`.** 252 tests pass. The new pieces:
+**Phase 4's simulation core, placement UI and roads are built and tested on `phase-4-roads`,
+built on the merged `phase-4-placement-ui`.** 264 tests pass. The new pieces:
 
 | # | Piece | Where |
 |---|---|---|
@@ -152,19 +156,36 @@ built on the merged `phase-4-build-and-haul`.** 252 tests pass. The new pieces:
 | 4.6 | `Hauling` autoload — the task queue, pickup/dropoff between two buildings' inventories | `autoloads/hauling.gd` |
 | 4.7 | Carried goods visible: a sack shows on a hauler's back while `carrying_qty > 0` | `scripts/view/monk_view.gd` |
 | 4.8 | `Labour` autoload — haul-task-or-construction-labour assignment, stateless | `autoloads/labour.gd` |
+| 4.10 | Roads: `Terrain.set_road`/`is_road`, cheaper than any natural terrain in `move_cost` (the pathfinder routes onto one) and a substep speed bonus in `Population`; placed as the last entry in the same `B`/`Tab`/click cycle as buildings; the one piece of terrain state `Terrain` actually saves | `autoloads/terrain.gd`, `scripts/view/roads_renderer.gd`, `scripts/view/building_placement.gd` |
 | — | `Population` extended: `current_task`, the `HAULING`/`BUILDING` activities, `_resolve_work` | `autoloads/population.gd`, `scripts/sim/person.gd` |
 | — | `BuildingsRenderer` — every building as a greybox rising from a staked plot to full height as `build_progress` climbs, roofed once `COMPLETE` | `scripts/view/buildings_renderer.gd` |
-| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_terrain_ray`, `test_build_input_map`, `test_building_placement_runtime` (real input, in the tree), `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
+| — | `test_goods`, `test_construction`, `test_buildings`, `test_hauling`, `test_labour`, `test_terrain_ray`, `test_terrain_roads`, `test_population_road_speed`, `test_build_input_map`, `test_building_placement_runtime` (real input, in the tree), `test_build_and_haul` (the day-in-the-life acceptance test) | `test/` |
 
 **Not built yet — genuinely open, not just untested:**
 
 | # | Task | Note |
 |---|---|---|
 | 4.9 | Worker-count-per-building + laborer-pool UI | Everyone idle is the laborer pool today; nobody can be pinned to one site |
-| 4.10 | Roads and their haul-speed bonus | `hauling.loaded_speed_factor`/`snow_speed_factor` exist; the road multiplier does not yet |
 | 4.11 | Real partial-construction models | The renderer's rising box is an honest placeholder, not a staged model |
 | — | Camera framing for the demo site | The demo (a stockpile + a granary beside the assart clearing) sits at the edge of the default camera framing — a Phase 1 composition item, same class of issue as Phase 3's "badly framed by the map-centred camera start" |
 | — | Placement is footprint-only | No preview of the door cell, no confirmation sound/flash, no placing while paused-menu'd; fine for a first pass, worth revisiting once there is a real building menu (4.9) to sit next to it |
+| — | Roads are single cells laid one click at a time | No click-drag to lay a run at once; fine for a first pass, a real annoyance once roads are actually being built at scale |
+
+**A test-environment gotcha that will bite the next runtime input test, found only by a mouse
+click test that looked like it passed and had not:**
+
+`test_building_placement_runtime.gd`'s click tests appeared to pass with the headless test
+runner's *default* dummy viewport (64×64) — but they were passing because the click was never
+reaching `_unhandled_input` at all: a corner-anchored HUD panel sized for a real window covers
+the *entire* 64×64 dummy viewport, so `_gui_input` silently consumes every synthetic click before
+`BuildingPlacement` ever sees one, and both branches of "did placing succeed" then read as "no
+change" regardless of what actually should have happened. `test_camera_rig_runtime.gd`'s wheel
+tests never hit this because a mouse wheel event is not a Control's `_gui_input` concern the same
+way — only a genuine button click routes through Control hit-testing first. Fixed by setting
+`get_tree().root.size = Vector2i(1600, 900)` in the test's `before_each`, matching the real
+window. **Any future runtime test that synthesizes a mouse button click needs this too** — a
+passing click test proves nothing on its own; check that the assertion would actually have
+caught the click being silently dropped.
 
 **On top of the two bugs below the Build-and-Haul core already found (see the next entry down),
 the placement UI surfaced two more, both again invisible until it actually ran in the tree:**
@@ -640,6 +661,30 @@ sibling test calling `Buildings.clear()` first, which is a general lesson about 
 another autoload's one-time boot side effect, not a defect in the demo seed itself. Both are
 detailed in "Start here next session" above, since they will bite again the next time a new
 `class_name`-bearing view script or a new demo-seeding autoload is added.
+
+### 2026-09-04 — Phase 4.10: roads override the terrain factor, and a real bug in a "passing" test
+
+Roads add exactly one thing to `Terrain`: a `PackedByteArray` of built cells, cheaper to cross
+than any natural terrain (`roads.move_cost_factor` in `data/tuning.json`, tuned below even
+"built" ground) so the pathfinder actively prefers routing onto one rather than merely accepting
+it — the "genuine investment" `SIMULATION_SPEC.md` §10 describes. Because a road can now be
+cheaper than the previous cheapest terrain, `Terrain.min_step_cost()` (the pathfinder's
+admissibility bound) had to be updated too, or A* would stop being guaranteed optimal wherever a
+road exists. The substep speed bonus (`Population._effective_move_cells`) checks only the cell
+the person is already standing on, the same per-substep-not-per-cell coarseness the loaded/snow
+factors already have, not a new approximation. Roads are the one piece of terrain state that is
+edited rather than derived from the preset, so they are the one piece `Terrain.serialize()`
+actually has to save — everything else still rebuilds from `data/terrain_presets.json`.
+
+Placement reuses the existing ghost-preview controller rather than a second input mode: a road
+is appended as a synthetic last entry (`BuildingPlacement.ROAD_TYPE_ID`) in the same `Tab` cycle,
+confirmed the same way a building is, just toggling `Terrain.set_road` instead of calling
+`Buildings.place_building` — cheaper than building and testing a whole parallel mode-switching
+system for one more placeable thing.
+
+The real find here was a test bug, not a sim bug: see "Start here next session" above for the
+64×64 dummy-viewport/HUD-panel gotcha that let a placement click test pass while never actually
+delivering the click.
 
 ---
 

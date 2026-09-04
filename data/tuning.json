@@ -74,6 +74,12 @@
     "default_skill_factor": 1.0
   },
 
+  "roads": {
+    "_comment": "Phase 4.10, SIMULATION_SPEC.md §10: 'roads are a genuine investment: they cut haul time across the whole precinct'. move_cost_factor overrides the per-terrain-type factor in autoloads/terrain.gd's move_cost for a road cell — lower than every natural terrain (including 'built', 0.7), so the pathfinder actively prefers routing through a road rather than merely tolerating it. speed_factor scales a substep's cell budget (Population._effective_move_cells) when the person is currently standing on a road, the same coarse per-substep approximation the loaded/snow factors already use rather than a per-cell one.",
+    "move_cost_factor": 0.5,
+    "speed_factor": 1.5
+  },
+
   "hauling": {
     "_comment": "Phase 4, SIMULATION_SPEC.md §10. carry_max_units is the placeholder per-trip cap, unmodified by strength (Phase 6). loaded_speed_factor and snow_speed_factor scale the existing watchable move_cells_per_substep pace (agents.move_cells_per_substep) rather than switching to real-world walking speed — a literal 1.2 m/s would cross the whole 192-cell map in under two substeps at accelerated sim-time and break the deliberately slow, watchable Phase 3 pace. Real speed and the road bonus (§4.10) are a follow-up once roads exist to make the trade-off visible.",
     "carry_max_units": 25,

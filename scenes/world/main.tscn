@@ -13,6 +13,7 @@
 [ext_resource type="Script" path="res://scripts/ui/horarium_ring.gd" id="11_horarium"]
 [ext_resource type="Script" path="res://scripts/view/buildings_renderer.gd" id="12_buildings"]
 [ext_resource type="Script" path="res://scripts/view/building_placement.gd" id="13_placement"]
+[ext_resource type="Script" path="res://scripts/view/roads_renderer.gd" id="14_roads"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -48,6 +49,9 @@ script = ExtResource("12_buildings")
 
 [node name="BuildingPlacement" type="Node3D" parent="." unique_id=1747990265]
 script = ExtResource("13_placement")
+
+[node name="RoadsRenderer" type="Node3D" parent="." unique_id=1747990266]
+script = ExtResource("14_roads")
 
 [node name="HorariumRing" type="CanvasLayer" parent="." unique_id=1747990263]
 script = ExtResource("11_horarium")

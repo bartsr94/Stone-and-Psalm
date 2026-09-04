@@ -1,12 +1,20 @@
-## Ghost-preview building placement (roadmap 4.2): press `B` to start, `Tab` cycles the building
-## type, `R` rotates 90°, left click confirms, `Escape` cancels.
+## Ghost-preview building placement (roadmap 4.2), plus roads (4.10) as one more entry in the
+## same cycle: press `B` to start, `Tab` cycles the type — buildings, then a single-cell road at
+## the end of the list — `R` rotates a building 90°, left click confirms, `Escape` cancels.
 ##
-## A view node — it only ever calls `Buildings.can_place`/`place_building`, the same headless API
-## `test_buildings.gd` exercises directly. Where the mouse points at the ground is
+## A view node — it only ever calls `Buildings.can_place`/`place_building` or
+## `Terrain.is_walkable`/`set_road`, the same headless APIs `test_buildings.gd` and
+## `test_terrain_roads.gd` exercise directly. Where the mouse points at the ground is
 ## `TerrainRay.intersect_ground` (pure, its own tests) fed by this camera's projection; nothing
 ## here assumes a specific camera transform, so it keeps working through pans, turns and zooms.
 class_name BuildingPlacement
 extends Node3D
+
+## Not a real `data/buildings.json` entry — a road is one cell, not a footprint, and toggles
+## rather than accumulating construction state, so it does not belong in `Buildings` at all.
+## Appended to the end of the cycle so existing callers that assume index 0 is a real building
+## type (the demo seed, most tests) are unaffected.
+const ROAD_TYPE_ID := "__road__"
 
 const _GHOST_HEIGHT_M := 1.0
 const _VALID_COLOUR := Color(0.35, 0.9, 0.35, 0.45)
@@ -80,11 +88,16 @@ func has_hover() -> bool:
 	return _has_hover
 
 
-## Only the types with a footprint that fits somewhere — every current type does, but this is
-## where a future "already at the population cap" style filter would go without touching input
-## handling. Sorted, so cycling is stable and reproducible.
+## Every real building type, sorted (so cycling is stable and reproducible), plus the road
+## pseudo-type at the end.
 func type_ids() -> Array:
-	return Buildings.type_ids()
+	var ids := Buildings.type_ids()
+	ids.append(ROAD_TYPE_ID)
+	return ids
+
+
+func is_road_selected() -> bool:
+	return current_type_id() == ROAD_TYPE_ID
 
 
 func _toggle() -> void:
@@ -131,15 +144,19 @@ func _refresh_ghost() -> void:
 	if type_id == "":
 		return
 
-	var footprint := Buildings.footprint_for(type_id, _rotation_deg)
+	var footprint := Vector2i.ONE if type_id == ROAD_TYPE_ID else Buildings.footprint_for(type_id, _rotation_deg)
 	var size_m := Vector2(footprint) * Terrain.cell_size_m()
-	(_ghost.mesh as BoxMesh).size = Vector3(size_m.x, _GHOST_HEIGHT_M, size_m.y)
+	var height := 0.1 if type_id == ROAD_TYPE_ID else _GHOST_HEIGHT_M
+	(_ghost.mesh as BoxMesh).size = Vector3(size_m.x, height, size_m.y)
 
 	var centre := Vector2(_hover_cell) + Vector2(footprint) * 0.5
 	var ground := Terrain.cell_to_world(int(floor(centre.x)), int(floor(centre.y)))
-	_ghost.position = ground + Vector3(0.0, _GHOST_HEIGHT_M * 0.5, 0.0)
+	_ghost.position = ground + Vector3(0.0, height * 0.5, 0.0)
 
-	var valid := Buildings.can_place(type_id, _hover_cell, _rotation_deg)
+	var valid := (
+		Terrain.is_walkable(_hover_cell.x, _hover_cell.y) if type_id == ROAD_TYPE_ID
+		else Buildings.can_place(type_id, _hover_cell, _rotation_deg)
+	)
 	_ghost.material_override = _valid_material if valid else _invalid_material
 	_ghost.visible = true
 
@@ -150,8 +167,11 @@ func _confirm() -> void:
 	var type_id := current_type_id()
 	if type_id == "":
 		return
-	Buildings.place_building(type_id, _hover_cell, _rotation_deg)
-	_refresh_ghost()   # the site is occupied now; recolour immediately rather than waiting for the next hover
+	if type_id == ROAD_TYPE_ID:
+		Terrain.set_road(_hover_cell.x, _hover_cell.y, not Terrain.is_road(_hover_cell.x, _hover_cell.y))
+	else:
+		Buildings.place_building(type_id, _hover_cell, _rotation_deg)
+	_refresh_ghost()   # the site/cell changed; recolour immediately rather than waiting for the next hover
 
 
 func _elevation_at_world(world_x: float, world_z: float) -> float:
