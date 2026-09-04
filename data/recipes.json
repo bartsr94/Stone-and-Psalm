@@ -1,0 +1,18 @@
+{
+  "_comment": "Recipes for Phase 5 production (SIMULATION_SPEC.md §9, roadmap 5.1). Read by autoloads/production.gd. `building_type` keys into data/buildings.json — a recipe only ever runs at a COMPLETE building of that type, exactly one active batch at a time (Building.active_recipe/recipe_progress). `inputs`/`outputs` are good_id -> qty per batch, taken from and deposited into the *building's own inventory* (SIMULATION_SPEC.md §10 — no global pool): starting a batch consumes its inputs immediately, same 'per batch' framing the spec table uses, and a batch with no inputs (raw extraction — felling, quarrying) can always start. `labour_hours` is the placeholder one-worker-at-skill-50 figure from §9's table. This file covers only the first link of the first chain the roadmap calls out (5.2: timber -> firewood) — the two extraction recipes that need no building type not already in data/buildings.json; sawing, charcoal-burning and everything downstream wait on their own building types (sawpit, charcoal stack, ...) as later Phase 5 work needs them, a JSON entry each, zero code changes.",
+
+  "felling": {
+    "label": "Felling",
+    "building_type": "woodcutters_hut",
+    "inputs": {},
+    "outputs": { "timber": 10 },
+    "labour_hours": 4
+  },
+  "quarrying": {
+    "label": "Quarrying",
+    "building_type": "quarry",
+    "inputs": {},
+    "outputs": { "building_stone": 8 },
+    "labour_hours": 6
+  }
+}

@@ -1,14 +1,14 @@
-## Worker-assignment panel for construction crews (roadmap 4.9).
+## Worker-assignment panel for crews (roadmap 4.9, extended 5.1 for production).
 ##
-## Scope is deliberately narrow: a production building's `worker_slots` does nothing until a
-## Phase 5 recipe exists to run, so this panel only ever lists sites that are `UNDER_CONSTRUCTION`
-## right now — the one place `worker_slots` already matters (`Buildings.assign_worker`,
-## `Labour.request_task`'s crew-outranks-the-queue rule, `SIMULATION_SPEC.md` §6.5/§7.3).
+## Lists every building with a crew worth showing: a site `UNDER_CONSTRUCTION`, or a `COMPLETE`
+## production building now that `Production` (roadmap 5.1) gives its `worker_slots` a recipe to
+## run — the same eligibility `Buildings.assign_worker` enforces, so a row here is never a promise
+## the sim cannot keep (`SIMULATION_SPEC.md` §6.5/§7.3).
 ##
 ## Presentation only, built in code the way `hud.gd` and `site_status_overlay.gd` are. It reads
-## `Buildings`/`Population` and writes nothing except through `Buildings.assign_worker` /
-## `unassign_worker` — the same headless API `test_buildings.gd` and `test_labour.gd` exercise
-## directly. Toggle with `C` (`crew_toggle`).
+## `Buildings`/`Production`/`Population` and writes nothing except through
+## `Buildings.assign_worker`/`unassign_worker` — the same headless API `test_buildings.gd` and
+## `test_labour.gd` exercise directly. Toggle with `C` (`crew_toggle`).
 class_name CrewPanel
 extends CanvasLayer
 
@@ -45,7 +45,7 @@ func _ready() -> void:
 	_panel.add_child(column)
 
 	var title := Label.new()
-	title.text = "CONSTRUCTION CREWS"
+	title.text = "CREWS"
 	title.add_theme_font_size_override("font_size", 16)
 	column.add_child(title)
 
@@ -98,17 +98,23 @@ func unassign_button_for(building_id: int) -> Button:
 	return null if row == null else row.get_node("MinusButton") as Button
 
 
-## Sites the panel lists: under construction, with at least one worker slot, sorted by id so the
-## row order is stable from one refresh to the next.
+## Sites the panel lists: under construction, or a complete production building — either way with
+## at least one worker slot — sorted by id so the row order is stable from one refresh to the
+## next. Mirrors `Buildings._accepts_a_crew`'s eligibility exactly (a row here is only ever a
+## building `assign_worker` will actually accept).
 func _sites() -> Array:
 	var ids := []
 	for id in Buildings.building_ids():
-		var b := Buildings.get_building(id)
-		if b.construction_state != Building.State.UNDER_CONSTRUCTION:
-			continue
 		if Buildings.worker_slots(id) <= 0:
 			continue
-		ids.append(id)
+		var b := Buildings.get_building(id)
+		var is_producing_type: bool = str(Buildings.get_type(b.type_id).get("category", "")) == "production"
+		var eligible: bool = (
+			b.construction_state == Building.State.UNDER_CONSTRUCTION
+			or (b.construction_state == Building.State.COMPLETE and is_producing_type)
+		)
+		if eligible:
+			ids.append(id)
 	ids.sort()
 	return ids
 
@@ -145,7 +151,7 @@ func _build_row(id: int, pool: Array) -> Control:
 	row.add_theme_constant_override("separation", 8)
 
 	var label := Label.new()
-	label.text = "%s  (%d/%d)" % [str(type_def.get("label", b.type_id)), assigned, capacity]
+	label.text = "%s  (%d/%d)  %s" % [str(type_def.get("label", b.type_id)), assigned, capacity, _status_text(b)]
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(label)
 
@@ -168,6 +174,18 @@ func _build_row(id: int, pool: Array) -> Control:
 	row.add_child(plus)
 
 	return row
+
+
+## What a row's crew is actually doing right now, so "assigned but nothing to show" (a production
+## site out of inputs for its next batch) doesn't look identical to real work in progress.
+func _status_text(b: Building) -> String:
+	if b.construction_state == Building.State.UNDER_CONSTRUCTION:
+		return "· building"
+	if b.active_recipe != "":
+		return "· producing %s" % str(Production.get_recipe(b.active_recipe).get("label", b.active_recipe))
+	if Production.can_produce(b.id):
+		return "· idle"
+	return "· nothing to produce"
 
 
 func _on_assign(building_id: int) -> void:

@@ -303,13 +303,14 @@ func is_frost_gated(id: int) -> bool:
 	return Construction.frost_blocks_progress(requires_mortar, Weather.temperature_c(), _frost_gate_temp_c)
 
 
-# --- worker assignment (roadmap 4.9) ----------------------------------------------------------
+# --- worker assignment (roadmap 4.9, extended 5.1) ----------------------------------------------
 #
 # SIMULATION_SPEC.md §6.5, §7.3: the player can pin a person to a specific building — "assigned
 # jobs... outrank the queue" — leaving everyone else as the laborer pool `Labour` already draws
-# on. Scoped to construction crews for now: a production building's worker_slots have nothing to
-# do until Phase 5 gives them a recipe to run, and assigning someone to stand at a finished shed
-# doing nothing would look like a bug, not a feature.
+# on. A building is eligible while there is real work for a crew there: `UNDER_CONSTRUCTION`
+# (roadmap 4.9), or `COMPLETE` and of a `category: "production"` type now that `Production`
+# (roadmap 5.1) gives its `worker_slots` a recipe to run. Anything else — `PLANNED`, a finished
+# storage building with no crew concept at all — stays refused, same as before.
 
 ## The building this person is currently pinned to, or -1 if they are in the laborer pool. A
 ## small linear scan over placed buildings rather than a reverse index on `Person` — there is no
@@ -336,13 +337,13 @@ func worker_slots(id: int) -> int:
 	return int(get_type(b.type_id).get("worker_slots", 0))
 
 
-## Pins `person_id` to `building_id`'s construction crew, first releasing them from wherever they
-## were pinned before (a person is never assigned to two sites at once). Refuses a building that
-## is not `UNDER_CONSTRUCTION` (see the section comment above), one with no free slot, or a
-## person already at that slot count. Returns whether the assignment took.
+## Pins `person_id` to `building_id`'s crew, first releasing them from wherever they were pinned
+## before (a person is never assigned to two sites at once). Refuses a building that is not
+## eligible (see the section comment above), one with no free slot, or a person already at that
+## slot count. Returns whether the assignment took.
 func assign_worker(building_id: int, person_id: int) -> bool:
 	var b := get_building(building_id)
-	if b == null or b.construction_state != Building.State.UNDER_CONSTRUCTION:
+	if b == null or not _accepts_a_crew(b):
 		return false
 	if b.assigned_workers.has(person_id):
 		return true
@@ -351,6 +352,14 @@ func assign_worker(building_id: int, person_id: int) -> bool:
 	unassign_worker(person_id)
 	b.assigned_workers.append(person_id)
 	return true
+
+
+func _accepts_a_crew(b: Building) -> bool:
+	if b.construction_state == Building.State.UNDER_CONSTRUCTION:
+		return true
+	if b.construction_state != Building.State.COMPLETE:
+		return false
+	return str(get_type(b.type_id).get("category", "")) == "production"
 
 
 ## Releases `person_id` from whatever building they are pinned to, if any. Safe to call on

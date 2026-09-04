@@ -74,6 +74,11 @@
     "default_skill_factor": 1.0
   },
 
+  "production": {
+    "_comment": "Phase 5, SIMULATION_SPEC.md §9. default_skill_factor is the same Phase-6-shaped placeholder as construction's — every worker currently runs a recipe at the same rate. Kept as its own key rather than reusing construction's so the two can diverge once skills exist (a mason's construction skill need not equal a woodcutter's felling skill).",
+    "default_skill_factor": 1.0
+  },
+
   "roads": {
     "_comment": "Phase 4.10, SIMULATION_SPEC.md §10: 'roads are a genuine investment: they cut haul time across the whole precinct'. move_cost_factor overrides the per-terrain-type factor in autoloads/terrain.gd's move_cost for a road cell — lower than every natural terrain (including 'built', 0.7), so the pathfinder actively prefers routing through a road rather than merely tolerating it. speed_factor scales a substep's cell budget (Population._effective_move_cells) when the person is currently standing on a road, the same coarse per-substep approximation the loaded/snow factors already use rather than a per-cell one.",
     "move_cost_factor": 0.5,

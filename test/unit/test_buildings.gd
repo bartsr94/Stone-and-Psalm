@@ -243,6 +243,23 @@ func test_completion_clears_the_crew() -> void:
 	assert_eq(Buildings.building_for_worker(1), -1, "a finished site has no crew left to show")
 
 
+func test_a_complete_production_building_accepts_a_crew() -> void:
+	var id := Buildings.place_building("woodcutters_hut", _open_site("woodcutters_hut"))
+	Buildings.deliver_material(id, "sawn_timber", 20)
+	Buildings.deliver_material(id, "nails", 4)
+	Buildings.contribute_labour(id, 200.0)
+	assert_eq(Buildings.get_building(id).construction_state, Building.State.COMPLETE)
+
+	assert_true(Buildings.assign_worker(id, 1), "a finished woodcutters' hut can now run a recipe")
+	assert_eq(Buildings.building_for_worker(1), id)
+
+
+func test_a_complete_storage_building_still_refuses_a_crew() -> void:
+	var id := Buildings.seed_building("open_stockpile", _open_site("open_stockpile"))
+	assert_eq(Buildings.get_building(id).construction_state, Building.State.COMPLETE)
+	assert_false(Buildings.assign_worker(id, 1), "storage has no crew concept, complete or not")
+
+
 # --- referential integrity, Architecture Guide §6 --------------------------------------------
 
 func test_every_build_material_names_a_real_good() -> void:

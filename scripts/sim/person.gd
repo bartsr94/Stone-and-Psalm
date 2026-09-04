@@ -14,8 +14,10 @@ extends RefCounted
 
 ## What the person is currently doing. The `TO_*` states are "walking there"; on arrival they
 ## become the matching settled state. HAULING and BUILDING are Phase 4: carrying a good between
-## two buildings, or contributing labour-hours at a construction site.
-enum Activity { SLEEP, TO_CHURCH, AT_OFFICE, TO_WORK, WORKING, IDLE, HAULING, BUILDING }
+## two buildings, or contributing labour-hours at a construction site. PRODUCING is Phase 5:
+## running a recipe's batch at a COMPLETE production building. Append-only — the save format
+## depends on the order.
+enum Activity { SLEEP, TO_CHURCH, AT_OFFICE, TO_WORK, WORKING, IDLE, HAULING, BUILDING, PRODUCING }
 
 var id: int = 0
 var given_name: String = ""
@@ -29,8 +31,8 @@ var activity: Activity = Activity.SLEEP
 var current_office: String = ""         ## which office is being sung, when AT_OFFICE
 
 ## `{}` (idle/legacy work-site), `{"kind":"haul","task_id":int,"stage":"to_pickup"/"to_dropoff"}`,
-## or `{"kind":"build","building_id":int}`. Owned by `Population`; `Hauling`/`Buildings` own the
-## task and building records this points at.
+## `{"kind":"build","building_id":int}`, or `{"kind":"produce","building_id":int}`. Owned by
+## `Population`; `Hauling`/`Buildings`/`Production` own the task and building records this points at.
 var current_task: Dictionary = {}
 var carrying_good: String = ""
 var carrying_qty: int = 0
