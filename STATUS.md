@@ -1,7 +1,7 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 176 passing (GUT 9.6.0, headless)
+**Test count:** 184 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
@@ -134,6 +134,8 @@ new pieces:
 | 3.9 | **`horarium_ring.gd`** — the signature dial, toggle `H` | `scripts/ui/horarium_ring.gd` |
 | 3.10 | `precinct_renderer.gd` — greybox church, dormitory, assart | `scripts/view/precinct_renderer.gd` |
 | — | `Monastic` — shared order/class enums | `scripts/sim/monastic.gd` |
+| + | `SaveManager` autoload — one JSON document, schema-stamped; `state_hash()` | `autoloads/save_manager.gd` |
+| + | `test_save_load` (§19 acceptance) + `test_headless_years` (4-year headless soak, deterministic) | `test/` |
 
 Phase 3 exit criterion ("a clip of a summer and a winter day side by side"): the two Horarium
 screenshots stand in for it; a real clip needs `tools/timelapse.gd` run windowed (produces a
