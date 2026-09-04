@@ -1,0 +1,4 @@
+Godot Engine v4.6.1.stable.official.14d19694e - https://godotengine.org
+D3D12 12_0 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 5050 Laptop GPU
+
+screenshot: wrote res://docs/screenshots/phase2_autumn_afternoon.png

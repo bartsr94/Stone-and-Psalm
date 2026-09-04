@@ -260,9 +260,14 @@ func serialize() -> Dictionary:
 	return {"abs_minute": _abs_minute, "speed_index": _speed_index}
 
 
+## Loads a saved instant. Emits `day_passed` and `season_changed` afterwards so everything that
+## tracks the calendar — weather, the sky, the seasonal materials — resyncs to the loaded date
+## rather than holding whatever it last computed.
 func deserialize(data: Dictionary) -> void:
 	_abs_minute = float(data.get("abs_minute", 0.0))
 	_speed_index = int(data.get("speed_index", 0))
+	day_passed.emit(day_of_year())
+	season_changed.emit(season())
 
 
 # --- internals -------------------------------------------------------------------------

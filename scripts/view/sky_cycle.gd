@@ -102,10 +102,11 @@ func _apply() -> void:
 	_environment.volumetric_fog_density = float(season["fog_density"]) * float(sky["fog_density_scale"])
 	_environment.volumetric_fog_albedo = season["fog_color"]
 
-	# Ambient: diurnal level scaled by the season, tinted toward the horizon.
+	# Ambient: diurnal level scaled by the season, tinted toward the horizon but lifted toward
+	# white so shadowed north slopes do not crush to black.
 	_environment.ambient_light_energy = float(sky["ambient_energy"]) * float(season["ambient_energy_scale"])
-	_environment.ambient_light_color = (_sky_material.sky_horizon_color if _sky_material != null
-		else Color(0.6, 0.65, 0.72))
+	var ambient_base := _sky_material.sky_horizon_color if _sky_material != null else Color(0.6, 0.65, 0.72)
+	_environment.ambient_light_color = ambient_base.lerp(Color.WHITE, 0.3)
 
 
 func _orient_sun(altitude_deg: float, azimuth_deg: float) -> void:

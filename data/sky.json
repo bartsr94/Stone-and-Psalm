@@ -44,7 +44,7 @@
       "sun_color": "#fff2df",
       "sky_top": "#3d547a",
       "sky_horizon": "#bcc6d0",
-      "ambient_energy": 0.92,
+      "ambient_energy": 1.05,
       "fog_density_scale": 1.0
     },
     {
@@ -53,7 +53,7 @@
       "sun_color": "#fff8ee",
       "sky_top": "#35507a",
       "sky_horizon": "#aebfd0",
-      "ambient_energy": 1.05,
+      "ambient_energy": 1.2,
       "fog_density_scale": 0.88
     }
   ]

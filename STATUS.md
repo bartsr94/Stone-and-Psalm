@@ -1,17 +1,25 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 66 passing (GUT 9.6.0, headless)
+**Test count:** 127 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
 
 ## Project Phase
 
-**Phase 1 — The Valley** ← current, terrain and river surface are in place
+**Phase 2 — Seasons and Sky** ← complete on branch `phase-2-seasons-and-sky`
 
-A lit 3D valley renders with a working orthographic camera, dynamic vegetation, and a first
-founding-site composition. Seasonal lighting remains.
+The valley now has an authoritative clock, a real solar model, a day/night cycle laid over a
+four-keyframe seasonal blend, snow as a terrain/vegetation shader parameter, deterministic
+daily weather, precipitation particles, and an in-world HUD (date, time, season, weather,
+speed control). Screenshots across summer / winter / autumn in `docs/screenshots/phase2_*`.
+
+**Phase 1 — The Valley** — exit gate ("a screenshot you actually like") is still the user's
+call. The valley composition, the camera start position, and the final lighting-pass tuning
+(1.7) were **not** signed off; Phase 2 built on the Phase 1 scene as-is. The dark self-shadowed
+north slope and the terrain chunk faceting visible in the phase-2 shots are Phase 1 tuning
+items, not Phase 2 regressions.
 
 ---
 
@@ -19,7 +27,7 @@ founding-site composition. Seasonal lighting remains.
 
 | Milestone | Phases | Status |
 |---|---|---|
-| M1 — It's a place | 0–2 | 🔲 Not started |
+| M1 — It's a place | 0–2 | 🟡 Phases 0 done, 1 built (exit gate unsigned), 2 done |
 | M2 — It's alive | 3 | 🔲 Not started |
 | M3 — It's a settlement | 4–5 | 🔲 Not started |
 | M4 — It's a monastery ★ vertical slice | 6 | 🔲 Not started |
@@ -103,22 +111,36 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ## Start here next session
 
-**Phase 1 is in progress.** `Ctrl+F5` opens a lit 3D valley with a working orthographic camera,
-terrain bands, a flowing river surface, and the first founding-site landmarks. 66 tests pass
-headless. The committed screenshot is
-still the Phase 0 baseline at `docs/screenshots/phase0_camera_rig.png`.
+**Phase 2 is complete on `phase-2-seasons-and-sky` (merged to `main`).** `Ctrl+F5` opens the
+valley with a running clock: the sun rises in the east and sets in the west, the day is
+visibly shorter in winter, the four seasons blend through colour / fog / snow / foliage, daily
+weather brings rain and snow, and a HUD shows the date, season, weather and speed control.
+127 tests pass headless. Season / weather / sun screenshots are in `docs/screenshots/phase2_*`.
 
-Remaining setup and Phase 1 work:
+What is built (Phase 2.1–2.8):
+
+| # | Piece | Where |
+|---|---|---|
+| 2.1 | `SimClock` — authoritative calendar, speeds, signals | `autoloads/sim_clock.gd` |
+| 2.2 | `Daylight` — declination, daylight length, sun altitude/azimuth at 54°N | `scripts/sim/daylight.gd` |
+| 2.3 | Day/night sun + sky driver, keyframed by sun altitude | `scripts/view/sky_cycle.gd`, `data/sky.json` |
+| 2.4 | `SeasonCurve` (pure) + `SeasonBlender` (resolves `data/seasons.json`) | `scripts/sim/`, `scripts/view/` |
+| 2.5 | Snow as a terrain shader uniform, snow line drops in deep winter | `assets/materials/terrain_ground.gdshader` |
+| 2.6 | Seasonal foliage tint + winter bare + snow dusting | `assets/materials/veg_foliage.gdshader` |
+| 2.7 | `Weather` — daily temp/precip, cosine baseline + 3-day smooth, injected `Dice` | `autoloads/weather.gd` |
+| 2.8 | Rain / snow GPU particles following the camera | `scripts/view/precipitation.gd` |
+| — | `Dice` / `ScriptedDice` — the injected RNG the portfolio pattern needs | `scripts/sim/` |
+| — | HUD + `stone_and_psalm_theme.tres` (structure from the Palusteria Nights repo, flat fills) | `scripts/ui/hud.gd`, `ui/theme/` |
+| — | `tools/timelapse.gd`, `tools/screenshot.gd` now pin a chosen day/minute | `tools/` |
+
+Outstanding from earlier phases (still open):
 
 | # | Task | Note |
 |---|---|---|
-| 0.7 | Choose and vendor a greybox kit into `assets/kit/` | **Decision needed** — Kenney medieval/survival (CC0) is the leading candidate. Record the licence in `assets/kit/LICENCE.md`. Not blocking: Phase 0's building is a `BoxMesh`, and nothing needs a kit until real building types arrive in Phase 4 |
-| 1.6 | Add trees, rocks, and scrub via `MultiMeshInstance3D` | `forest_density` is already authored in the terrain grid |
-| 1.7 | Tune the final lighting pass | Revisit fog, sun, SSAO, and SSIL after vegetation is visible |
-| — | Open the project in the editor once | Everything so far was authored headlessly. The editor will rewrite `.tscn`/`.tres` with resource UIDs on first save — expect one noisy diff, and let it happen in its own commit |
-
-The Phase 1 exit criterion remains a screenshot you actually like. Iterate on the valley until the
-terrain, water, vegetation, and lighting read as a place before moving to seasons.
+| 1.x | **Sign off the Phase 1 exit gate** — "a screenshot you actually like" | The valley composition, camera start position and lighting-pass tuning (1.7) were never approved. The dark self-shadowed north slope and terrain chunk faceting in the phase-2 shots are the items to address. |
+| 0.7 | Choose and vendor a greybox kit into `assets/kit/` | Not blocking until Phase 4 building types. |
+| — | Open the project in the editor once | Still authored fully headlessly. First editor save rewrites `.tscn`/`.tres` with UIDs — let it be its own noisy commit. |
+| 3.x | **Phase 3 — One Monk Walking** is next | `unequal_hours`, `computus`, `Liturgy` + `liturgical_calendar.json`, `horarium`, `Person`/`Population`, A* pathfinder, agent substep movement, monk greybox, the Horarium ring UI, greybox church + dormitory. `Dice`, `SimClock`, `Daylight` and the HUD/theme are already in place for it. |
 
 ### Screenshots
 
@@ -340,6 +362,50 @@ again after the first import.
 `run/main_scene` is left unset — nothing to run yet. `.godot/` (the import cache) stays untracked
 per `.gitignore`; `*.import` files for the assets already in the repo (GUT's fonts/icons) are
 committed as expected in Godot 4.
+
+### 2026-09-04 — Phase 2 built as a large autonomous block; Phase 1 exit gate left unsigned
+
+Phases 2.1–2.8 plus `Dice`, the HUD and the UI theme were built in one pass on
+`phase-2-seasons-and-sky`, following the roadmap order rather than the emphasis in the request
+(which mentioned UI first). The reasoning: `CLAUDE.md` is emphatic that phase order is a
+countermeasure to the portfolio failure mode, and the "UI" the game actually needs — the
+Horarium ring and the roster — is Phase 3 work. A speed/date/weather HUD was built now because
+Phase 2 needs a visible clock and it is a natural home for the theme.
+
+**Phase 1's exit gate ("a screenshot you actually like") was not signed off.** Phase 2 built on
+the Phase 1 scene as-is. This is a deliberate call to keep momentum, not an oversight: the
+valley composition, the camera start position and lighting-pass 1.7 are still open, and the
+phase-2 screenshots show what needs attention (a crushed north slope, chunk faceting). Nothing
+in Phase 2 depends on that tuning — it is all shader uniforms and autoload state over the same
+mesh.
+
+### 2026-09-04 — What was reusable from the Palusteria Nights repo: the pattern, not the art
+
+The request asked to pull assets from `C:\Users\Bart\Documents\Games\Palusteria Nights`. That
+project is a pixel-art Dialogic visual novel: its UI is nine-patch pixel textures, a pixel
+font, and Dialogic-coupled scenes. **None of the art transfers** — it would violate the
+locked vertex-colour / "this is not pixel art" direction (Arch Guide §4). What transferred is
+structure: `ui/theme/stone_and_psalm_theme.tres` is built the way that repo builds a theme (a
+`Theme` over `StyleBox` sub-resources), and `hud.gd` follows its pause-menu pattern
+(CanvasLayer, code-built controls, signal wiring). The theme uses flat parchment-edged fills,
+no imported textures, and no display font yet — a serif/blackletter face is an art-pass and
+licensing decision.
+
+### 2026-09-04 — GDScript: a bare `randf()` inside a base method skips subclass overrides
+
+`Dice.randf_range` / `randi_range` / `chance` first called a bare `randf()`, which binds to
+GDScript's **global** `randf()` built-in, not the method — so `ScriptedDice`'s override was
+never seen and "deterministic" tests were anything but. Fixed by calling `self.randf()`
+explicitly, and by deriving every other draw from that one method so `ScriptedDice` overrides
+only `randf()`. Also: `enum Sky` in `weather.gd` silently shadowed the native `Sky` resource
+class and failed the whole autoload — renamed to `Condition`.
+
+### 2026-09-04 — `SimClock.deserialize` re-emits `day_passed` and `season_changed`
+
+Loading an instant (a save, or the screenshot/timelapse tools jumping to a date) has to resync
+everything that only updates on a calendar edge — `Weather`, `sky_cycle`, the seasonal
+materials. Without it, the first screenshot at "14 July" still showed the January weather the
+autoload rolled at startup.
 
 ---
 
