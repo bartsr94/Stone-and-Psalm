@@ -30,7 +30,7 @@ func _ready() -> void:
 	_load_precinct()
 	SimClock.substep_passed.connect(_on_substep)
 	# Phase 3 demo: found a one-monk house once the world exists.
-	call_deferred("_found_demo_house_if_empty")
+	call_deferred("found_demo_house")
 
 
 # --- reading -----------------------------------------------------------------------------
@@ -57,14 +57,17 @@ func get_person_view(id: int) -> Dictionary:
 		return {}
 	var here := Terrain.cell_to_world(person.grid_pos.x, person.grid_pos.y)
 	var next := here
-	if not person.path.is_empty():
-		var step: Vector2i = person.path[0]
-		next = Terrain.cell_to_world(step.x, step.y)
+	var path_world: Array[Vector3] = []
+	for step in person.path:
+		path_world.append(Terrain.cell_to_world(step.x, step.y))
+	if not path_world.is_empty():
+		next = path_world[0]
 	return {
 		"id": id,
 		"name": person.given_name,
 		"world_pos": here,
 		"next_world_pos": next,
+		"path_world": path_world,
 		"moving": not person.path.is_empty(),
 		"activity": person.activity,
 		"office": person.current_office,
@@ -111,7 +114,9 @@ func clear() -> void:
 	_plan_cache.clear()
 
 
-func _found_demo_house_if_empty() -> void:
+## Founds the Phase 3 one-monk house if the community is empty. Idempotent — safe to call from
+## the autoload boot and from a test's setup.
+func found_demo_house() -> void:
 	if _people.is_empty():
 		add_person("Brother Ælred", Monastic.Class.CHOIR_MONK, Monastic.Order.CISTERCIAN, _dormitory_door)
 
