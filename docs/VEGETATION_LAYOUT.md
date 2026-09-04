@@ -36,6 +36,18 @@ than attempting one tree per cell. This keeps the initial low-poly population le
 while preserving the same coordinate-hash behaviour. Scale, rotation, and within-cell jitter are
 also derived from the seed, but are view transforms and are not part of the authoritative layout.
 
+## Renderer meshes
+
+Each batch instances an authored low-poly `.glb` prop from `assets/models/`, named in the
+`models` block of `data/vegetation.json` (`prop_tree_broadleaf`, `prop_tree_pine`, `prop_gorse`,
+`prop_rock_boulder`). The props carry their colour in the `Col` vertex attribute and the batch
+forces the shared `m_stone_and_psalm.tres` as `material_override`, so every category batches
+together. A missing model falls back to a unit box and logs an error rather than failing.
+
+`TREE` placements are split into two batches by elevation: cells at or above
+`pine_min_elevation_m` render as pine, the rest as broadleaf. This is a mesh choice made in the
+view layer — `VegetationLayout` still emits a single `TREE` decision and knows nothing about it.
+
 ## Deliberate boundaries
 
 - This layer decides placement only. Scale, rotation, mesh choice, and seasonal variants belong to

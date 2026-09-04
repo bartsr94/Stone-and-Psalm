@@ -1,9 +1,10 @@
-## Renders terrain-derived vegetation using three batched MultiMeshInstance3D nodes.
+## Renders terrain-derived vegetation using batched MultiMeshInstance3D nodes.
 ##
 ## This is presentation only. It reads the authoritative Terrain grid and the pure
 ## VegetationLayout rules, then can be deleted and rebuilt without changing simulation state.
-## The founding valley uses deliberately simple generated meshes until authored Blender assets
-## exist; the placement contract does not depend on which mesh replaces them later.
+## Each batch instances an authored low-poly .glb prop from assets/models/; the placement
+## contract does not depend on which mesh a batch uses, so swapping a prop is a view-only change.
+## Trees are split into broadleaf and pine batches by elevation — mesh choice, not a layout rule.
 extends Node3D
 
 const SETTINGS_PATH := "res://data/vegetation.json"
@@ -13,31 +14,34 @@ const SCRUB_POSITION_SALT: int = 0x4C957F2D
 const ROCK_POSITION_SALT: int = 0x7A3E91B7
 
 var _settings: Dictionary = {}
+var _models: Dictionary = {}
 var _material: Material = null
 
 
 func _ready() -> void:
-	_settings = _load_settings()
-	if _settings.is_empty():
+	if not _load_settings():
 		return
 	_material = load(MATERIAL_PATH)
 	_populate()
 
 
-func _load_settings() -> Dictionary:
+func _load_settings() -> bool:
 	var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
 	if file == null:
 		push_error("VegetationRenderer: cannot open %s" % SETTINGS_PATH)
-		return {}
+		return false
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	if not (parsed is Dictionary and parsed.has("founding_valley")):
 		push_error("VegetationRenderer: no founding_valley settings in %s" % SETTINGS_PATH)
-		return {}
-	return parsed["founding_valley"] as Dictionary
+		return false
+	_settings = parsed["founding_valley"] as Dictionary
+	_models = parsed.get("models", {}) as Dictionary
+	return true
 
 
 func _populate() -> void:
-	var tree_transforms: Array[Transform3D] = []
+	var broadleaf_transforms: Array[Transform3D] = []
+	var pine_transforms: Array[Transform3D] = []
 	var scrub_transforms: Array[Transform3D] = []
 	var rock_transforms: Array[Transform3D] = []
 	var cells_across: int = Terrain.cells_across()
@@ -47,6 +51,7 @@ func _populate() -> void:
 	var tree_stride: int = int(_settings["tree_sample_stride_cells"])
 	var scrub_stride: int = int(_settings["scrub_sample_stride_cells"])
 	var rock_stride: int = int(_settings["rock_sample_stride_cells"])
+	var pine_min_elevation: float = float(_settings["pine_min_elevation_m"])
 	var tree_settings: Dictionary = _settings["tree"]
 	var scrub_settings: Dictionary = _settings["scrub"]
 	var rock_settings: Dictionary = _settings["rock"]
@@ -55,7 +60,11 @@ func _populate() -> void:
 		for x in range(0, cells_across, tree_stride):
 			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
 			if placement == VegetationLayout.Placement.TREE:
-				tree_transforms.append(_transform_for_cell(x, y, seed, tree_settings, TREE_POSITION_SALT))
+				var xform := _transform_for_cell(x, y, seed, tree_settings, TREE_POSITION_SALT)
+				if Terrain.elevation_at(x, y) >= pine_min_elevation:
+					pine_transforms.append(xform)
+				else:
+					broadleaf_transforms.append(xform)
 
 	for y in range(0, cells_across, scrub_stride):
 		for x in range(0, cells_across, scrub_stride):
@@ -69,9 +78,10 @@ func _populate() -> void:
 			if placement == VegetationLayout.Placement.ROCK:
 				rock_transforms.append(_transform_for_cell(x, y, seed, rock_settings, ROCK_POSITION_SALT))
 
-	add_child(_make_multimesh_instance("Trees", _make_tree_mesh(), tree_transforms))
-	add_child(_make_multimesh_instance("Scrub", _make_scrub_mesh(), scrub_transforms))
-	add_child(_make_multimesh_instance("Rocks", _make_rock_mesh(), rock_transforms))
+	add_child(_make_multimesh_instance("Trees", _prop_mesh("tree_broadleaf"), broadleaf_transforms))
+	add_child(_make_multimesh_instance("Pines", _prop_mesh("tree_pine"), pine_transforms))
+	add_child(_make_multimesh_instance("Scrub", _prop_mesh("scrub"), scrub_transforms))
+	add_child(_make_multimesh_instance("Rocks", _prop_mesh("rock"), rock_transforms))
 
 
 func _placement(x: int, y: int, seed: int, tree_slope: float, scrub_slope: float) -> VegetationLayout.Placement:
@@ -134,87 +144,33 @@ func _make_multimesh_instance(
 	return instance
 
 
-func _make_tree_mesh() -> ArrayMesh:
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_box(tool, Vector3(0.3, 1.2, 0.3), Vector3(0.0, 0.6, 0.0), Palette.vertex("oak_dark"))
-	_add_frustum(tool, 1.15, 0.32, 2.1, 1.0, 7, Palette.vertex("foliage_dark"))
-	_add_frustum(tool, 0.9, 0.08, 1.7, 2.35, 7, Palette.vertex("foliage_light"))
-	tool.generate_normals()
-	return tool.commit()
+## Loads the authored .glb prop for a batch and returns its mesh. The .glb imports as a
+## PackedScene, so it is instanced once here, its MeshInstance3D's mesh is kept, and the
+## instance is discarded. Falls back to a unit box if the model is missing so the scene still
+## renders and the integration test still has a mesh to assert on.
+func _prop_mesh(model_key: String) -> Mesh:
+	var path: String = _models.get(model_key, "")
+	if path == "" or not ResourceLoader.exists(path):
+		push_error("VegetationRenderer: missing model '%s' (%s)" % [model_key, path])
+		return _fallback_mesh()
+	var packed := load(path) as PackedScene
+	if packed == null:
+		push_error("VegetationRenderer: %s is not a PackedScene" % path)
+		return _fallback_mesh()
+	var root := packed.instantiate()
+	var mesh: Mesh = null
+	var found := root.find_children("*", "MeshInstance3D", true, false)
+	if not found.is_empty():
+		mesh = (found[0] as MeshInstance3D).mesh
+	# Never entered the tree; free it now rather than deferring so no orphan lingers a frame.
+	root.free()
+	if mesh == null:
+		push_error("VegetationRenderer: no MeshInstance3D in %s" % path)
+		return _fallback_mesh()
+	return mesh
 
 
-func _make_scrub_mesh() -> ArrayMesh:
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_frustum(tool, 0.6, 0.06, 0.9, 0.0, 6, Palette.vertex("bracken"))
-	tool.generate_normals()
-	return tool.commit()
-
-
-func _make_rock_mesh() -> ArrayMesh:
-	var tool := SurfaceTool.new()
-	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_add_frustum(tool, 0.82, 0.48, 0.7, 0.0, 7, Palette.vertex("gritstone"))
-	tool.generate_normals()
-	return tool.commit()
-
-
-func _add_box(tool: SurfaceTool, size: Vector3, centre: Vector3, colour: Color) -> void:
-	var half := size * 0.5
-	var min_corner := centre - half
-	var max_corner := centre + half
-	var a := Vector3(min_corner.x, min_corner.y, min_corner.z)
-	var b := Vector3(max_corner.x, min_corner.y, min_corner.z)
-	var c := Vector3(max_corner.x, max_corner.y, min_corner.z)
-	var d := Vector3(min_corner.x, max_corner.y, min_corner.z)
-	var e := Vector3(min_corner.x, min_corner.y, max_corner.z)
-	var f := Vector3(max_corner.x, min_corner.y, max_corner.z)
-	var g := Vector3(max_corner.x, max_corner.y, max_corner.z)
-	var h := Vector3(min_corner.x, max_corner.y, max_corner.z)
-	_add_quad(tool, a, b, c, d, colour)
-	_add_quad(tool, f, e, h, g, colour)
-	_add_quad(tool, e, a, d, h, colour)
-	_add_quad(tool, b, f, g, c, colour)
-	_add_quad(tool, d, c, g, h, colour)
-	_add_quad(tool, e, f, b, a, colour)
-
-
-func _add_frustum(
-	tool: SurfaceTool,
-	bottom_radius: float,
-	top_radius: float,
-	height: float,
-	base_y: float,
-	sides: int,
-	colour: Color
-) -> void:
-	var bottom := PackedVector3Array()
-	var top := PackedVector3Array()
-	for index in sides:
-		var angle: float = TAU * float(index) / float(sides)
-		var direction := Vector2(cos(angle), sin(angle))
-		bottom.append(Vector3(direction.x * bottom_radius, base_y, direction.y * bottom_radius))
-		top.append(Vector3(direction.x * top_radius, base_y + height, direction.y * top_radius))
-
-	for index in sides:
-		var next: int = (index + 1) % sides
-		_add_quad(tool, bottom[index], bottom[next], top[next], top[index], colour)
-		_add_triangle(tool, Vector3(0.0, base_y, 0.0), bottom[next], bottom[index], colour)
-		_add_triangle(tool, Vector3(0.0, base_y + height, 0.0), top[index], top[next], colour)
-
-
-func _add_quad(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, colour: Color) -> void:
-	_add_triangle(tool, a, b, c, colour)
-	_add_triangle(tool, a, c, d, colour)
-
-
-func _add_triangle(tool: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, colour: Color) -> void:
-	tool.set_color(colour)
-	tool.add_vertex(a)
-	tool.add_vertex(b)
-	tool.add_vertex(c)
-	tool.set_color(colour)
-	tool.add_vertex(c)
-	tool.add_vertex(b)
-	tool.add_vertex(a)
+func _fallback_mesh() -> Mesh:
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE
+	return box
