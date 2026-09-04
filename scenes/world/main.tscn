@@ -4,6 +4,8 @@
 [ext_resource type="Script" path="res://scripts/view/terrain_renderer.gd" id="2_wbupf"]
 [ext_resource type="Script" path="res://scripts/view/camera_rig.gd" id="3_7tdlr"]
 [ext_resource type="Script" path="res://scripts/view/vegetation_renderer.gd" id="4_veg"]
+[ext_resource type="Script" path="res://scripts/view/founding_site_renderer.gd" id="5_site"]
+[ext_resource type="Script" path="res://scripts/view/site_status_overlay.gd" id="6_overlay"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -15,9 +17,15 @@ script = ExtResource("2_wbupf")
 [node name="VegetationRenderer" type="Node3D" parent="." unique_id=1747990256]
 script = ExtResource("4_veg")
 
+[node name="FoundingSiteRenderer" type="Node3D" parent="." unique_id=1747990257]
+script = ExtResource("5_site")
+
 [node name="CameraRig" type="Node3D" parent="." unique_id=1502320612]
 script = ExtResource("3_7tdlr")
 
 [node name="Camera3D" type="Camera3D" parent="CameraRig" unique_id=1394251794]
 projection = 1
-size = 60.0
+size = 48.0
+
+[node name="SiteStatusOverlay" type="CanvasLayer" parent="." unique_id=1747990258]
+script = ExtResource("6_overlay")

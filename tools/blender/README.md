@@ -36,6 +36,12 @@ The reproducible low-poly source for the supporting valley props lives in
 `create_vegetation_props.py`. It creates `prop_stump`, `prop_fallen_log`, `prop_fern_clump`, and
 `prop_river_reeds` in `assets/blend`; run the validator and exporter afterwards.
 
+## Create the founding-site props
+
+`create_foundation_props.py` creates the Phase 1 presentation landmarks: `prop_founders_cross`,
+`prop_timber_shelter`, and `prop_campfire`. They are intentionally placeholders for the future
+hand-modelled church and settlement buildings; run the validator and exporter afterwards.
+
 ## Repair a file's material / colour attribute
 
 ```powershell

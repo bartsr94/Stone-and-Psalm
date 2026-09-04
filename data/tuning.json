@@ -16,7 +16,7 @@
     "yaw_turn_seconds": 0.25,
     "ortho_size_min_m": 20.0,
     "ortho_size_max_m": 160.0,
-    "ortho_size_start_m": 60.0,
+    "ortho_size_start_m": 48.0,
     "zoom_step_factor": 1.15,
     "zoom_smoothing_rate": 12.0,
     "pan_screens_per_sec": 0.8,

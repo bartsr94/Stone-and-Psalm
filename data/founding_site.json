@@ -1,0 +1,45 @@
+{
+  "_comment": "View-only composition for the founding valley. Anchors are cell coordinates; the renderer searches nearby for a valid flat meadow cell, so this remains robust when the valley preset is tuned.",
+  "site": {
+    "name": "The Founding Site",
+    "date": "AD 1132",
+    "description": "A few brothers, a rough shelter, and the first mark of a house in the waste."
+  },
+  "landmarks": [
+    {
+      "id": "founders_cross",
+      "label": "Founder’s Cross",
+      "model": "founders_cross",
+      "anchor": [94, 88],
+      "terrain": "meadow",
+      "max_slope_degrees": 8.0,
+      "search_radius_cells": 18,
+      "rotation_degrees": 0.0,
+      "scale": 1.0
+    },
+    {
+      "id": "timber_shelter",
+      "label": "First Timber Shelter",
+      "model": "timber_shelter",
+      "anchor": [104, 100],
+      "terrain": "meadow",
+      "max_slope_degrees": 8.0,
+      "search_radius_cells": 18,
+      "rotation_degrees": 24.0,
+      "scale": 1.12
+    },
+    {
+      "id": "campfire",
+      "label": "Founding Fire",
+      "model": "campfire",
+      "anchor": [100, 94],
+      "terrain": "meadow",
+      "max_slope_degrees": 8.0,
+      "search_radius_cells": 18,
+      "rotation_degrees": 0.0,
+      "scale": 1.0,
+      "light_energy": 1.6,
+      "light_color": "#E58C4D"
+    }
+  ]
+}

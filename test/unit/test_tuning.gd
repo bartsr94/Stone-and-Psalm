@@ -8,7 +8,7 @@ extends GutTest
 
 
 func test_reads_a_number() -> void:
-	assert_almost_eq(Tuning.get_num("camera.ortho_size_start_m"), 60.0, 0.0001)
+	assert_almost_eq(Tuning.get_num("camera.ortho_size_start_m"), 48.0, 0.0001)
 
 
 func test_reads_a_whole_number() -> void:

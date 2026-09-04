@@ -177,6 +177,28 @@ func test_vegetation_samples_are_jittered_inside_stride_tiles() -> void:
 	)
 
 
+func test_founding_site_has_three_terrain_validated_landmarks() -> void:
+	var renderer: Node = _find("FoundingSiteRenderer")
+	assert_not_null(renderer, "the founding-site renderer is instanced")
+	for landmark_id in ["founders_cross", "timber_shelter", "campfire"]:
+		var landmark: Node3D = renderer.find_child(landmark_id, true, false) as Node3D
+		assert_not_null(landmark, "%s landmark exists" % landmark_id)
+		var cell: Vector2i = landmark.get_meta("cell")
+		assert_true(Terrain.is_inside(cell.x, cell.y), "%s resolves inside the terrain" % landmark_id)
+		assert_eq(
+			Terrain.terrain_at(cell.x, cell.y), TerrainTypes.Terrain.MEADOW,
+			"%s resolves onto meadow" % landmark_id
+		)
+		assert_eq(Terrain.water_at(cell.x, cell.y), TerrainTypes.Water.NONE, "%s stays dry" % landmark_id)
+
+
+func test_founding_site_campfire_has_local_light_and_overlay() -> void:
+	var renderer: Node = _find("FoundingSiteRenderer")
+	var fire: Node = renderer.find_child("campfire", true, false)
+	assert_not_null(fire.find_child("FireGlow", true, false), "the founding fire has a local glow")
+	assert_not_null(_find("SiteStatusOverlay"), "the founding site status overlay is instanced")
+
+
 func test_terrain_dimensions_match_the_founding_preset() -> void:
 	assert_eq(Terrain.cells_across(), 192, "the founding valley is 192 cells across")
 	assert_eq(Terrain.chunk_cells(), 32, "terrain chunks are 32 cells across")

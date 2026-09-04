@@ -1,7 +1,7 @@
 # Stone and Psalm — Status
 
 **Last updated:** 2026-09-04
-**Test count:** 56 passing (GUT 9.6.0, headless)
+**Test count:** 66 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
@@ -10,7 +10,8 @@
 
 **Phase 1 — The Valley** ← current, terrain and river surface are in place
 
-A lit 3D valley renders with a working orthographic camera. Vegetation and the final lighting pass remain.
+A lit 3D valley renders with a working orthographic camera, dynamic vegetation, and a first
+founding-site composition. Seasonal lighting remains.
 
 ---
 
@@ -56,7 +57,7 @@ A lit 3D valley renders with a working orthographic camera. Vegetation and the f
 
 ## WIP checkpoint — Phase 1 terrain and river, mid-lighting-pass
 
-The terrain checkpoint is now green: **56 tests pass**. The integration test was updated from
+The terrain checkpoint is now green: **66 tests pass**. The integration test was updated from
 Phase 0's `Ground`/`GreyboxBuilding` nodes to Phase 1's `TerrainRenderer`, and now resets the
 singleton terrain before each scene test so dirty-chunk assertions do not depend on test order.
 
@@ -90,19 +91,21 @@ Three real bugs found only by rendering, fixed, worth knowing before touching th
    `root.get_node_or_null("Terrain")` in throwaway render/diagnostic scripts instead.
 
 The wide render has now been reviewed. The valley shape reads and the river follows its meander;
-the current fog and golden-hour lighting are still provisional and should be tuned again once
-trees and rocks give the scene visual anchors.
+the founding site's cross, timber shelter, and fire now give the scene a visual anchor, with a
+small status card establishing the historical starting point. Fog and golden-hour lighting are
+still provisional and should be tuned again once seasonal colour exists.
 
-Not started: 1.6 (trees/rocks via MultiMesh — `forest_density` data exists, nothing reads it yet),
-1.7 (final lighting pass, see above). The preset covers the handcrafted heightmap and 1.4's
-first river-surface implementation is complete.
+The Phase 1 presentation slice is now in place: terrain, river, vegetation, authored accents,
+founding-site landmarks, and a first lighting adjustment. The preset covers the handcrafted
+heightmap and 1.4's first river-surface implementation is complete.
 
 ---
 
 ## Start here next session
 
 **Phase 1 is in progress.** `Ctrl+F5` opens a lit 3D valley with a working orthographic camera,
-terrain bands, and a flowing river surface. 56 tests pass headless. The committed screenshot is
+terrain bands, a flowing river surface, and the first founding-site landmarks. 66 tests pass
+headless. The committed screenshot is
 still the Phase 0 baseline at `docs/screenshots/phase0_camera_rig.png`.
 
 Remaining setup and Phase 1 work:
