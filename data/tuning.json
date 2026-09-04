@@ -23,13 +23,12 @@
   },
 
   "sky": {
-    "_comment": "Solar geometry and the day/night light rig. axial_tilt_deg is an astronomical constant (Earth's obliquity) and drives declination in scripts/sim/daylight.gd. The rest is feel: solar_noon_minute fixes local noon (the model ignores the equation of time), and the dusk/dawn band is how many minutes either side of sunrise/sunset the sun light fades in and out over. Sun colour, energy and sky tint keyframes live in data/sky.json.",
+    "_comment": "Solar geometry and the day/night light rig. axial_tilt_deg is an astronomical constant (Earth's obliquity) and drives declination in scripts/sim/daylight.gd, which then gives the real altitude and bearing of the sun for any minute of any day. solar_noon_minute fixes local noon (the model ignores the equation of time). twilight_band_deg is how far below the horizon the sun still lights the sky; night_light_energy is the residual moonlight the directional light keeps once the sun is fully down. Sun colour, sky tint and fog keyframes by sun altitude live in data/sky.json.",
     "axial_tilt_deg": 23.44,
     "solar_noon_minute": 720,
-    "civil_twilight_minutes": 40.0,
-    "sun_azimuth_deg": 145.0,
-    "sun_altitude_max_deg": 59.0,
-    "sun_altitude_min_deg": -8.0
+    "twilight_band_deg": 8.0,
+    "night_light_energy": 0.06,
+    "night_light_color": "#3a4664"
   },
 
   "seasons": {
