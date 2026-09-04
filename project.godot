@@ -21,6 +21,7 @@ Tuning="*res://autoloads/tuning.gd"
 SimClock="*res://autoloads/sim_clock.gd"
 Terrain="*res://autoloads/terrain.gd"
 Weather="*res://autoloads/weather.gd"
+Liturgy="*res://autoloads/liturgy.gd"
 
 [editor_plugins]
 
