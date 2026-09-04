@@ -147,6 +147,38 @@ func test_can_produce_is_false_for_a_type_with_no_recipe() -> void:
 	assert_false(Production.can_produce(id), "no recipe targets masons_lodge yet")
 
 
+# --- a recipe with real inputs (sawing) ------------------------------------------------------
+
+func _completed_sawpit() -> int:
+	var id := Buildings.place_building("sawpit", _open_site("sawpit"))
+	Buildings.deliver_material(id, "sawn_timber", 10)
+	Buildings.contribute_labour(id, 200.0)
+	assert_eq(Buildings.get_building(id).construction_state, Building.State.COMPLETE)
+	return id
+
+
+func test_a_recipe_with_inputs_cannot_start_without_enough_stock() -> void:
+	var id := _completed_sawpit()
+	Buildings.add_to_inventory(id, "timber", 5)   # sawing needs 10
+	assert_false(Production.can_start(id, "sawing"))
+	assert_false(Production.can_produce(id))
+
+
+func test_a_recipe_with_inputs_starts_once_stocked_and_consumes_them() -> void:
+	var id := _completed_sawpit()
+	Buildings.add_to_inventory(id, "timber", 10)
+	assert_true(Production.start(id, "sawing"))
+	assert_eq(Buildings.inventory_of(id, "timber"), 0, "the batch's input is consumed up front")
+
+
+func test_a_finished_input_batch_deposits_its_output() -> void:
+	var id := _completed_sawpit()
+	Buildings.add_to_inventory(id, "timber", 10)
+	Production.contribute_labour(id, 3.0)   # sawing's full 3h
+	assert_eq(Buildings.inventory_of(id, "sawn_timber"), 8)
+	assert_eq(Buildings.get_building(id).active_recipe, "")
+
+
 func test_repeated_contributions_across_batches_keep_producing() -> void:
 	var id := _completed_woodcutters_hut()
 	Production.contribute_labour(id, 4.0)   # finishes batch 1: +10 timber
