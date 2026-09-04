@@ -41,3 +41,9 @@ desktop.ini
 
 # Tooling caches
 .serena/
+
+# scratch from tool runs
+shot_out.txt
+shot_err.txt
+import_out.txt
+import_err.txt
