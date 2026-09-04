@@ -1,0 +1,74 @@
+{
+  "_comment": "Phase 2.4 seasonal keyframes. Four keys, each anchored to the day of year it peaks on, lerped in a loop by scripts/sim/season_curve.gd and resolved by scripts/view/season_blender.gd. Colours are sRGB hex. sun_energy_scale multiplies the diurnal sun energy from data/sky.json; ground_tint / water_color / *_tint are multiplied into vertex colours by the shared shader. snow_coverage 0..1 drives the terrain snow blend and the snow line. broadleaf_bare drops the broadleaf canopy for winter.",
+
+  "keyframes": [
+    {
+      "name": "winter",
+      "peak_day": 20,
+      "sun_energy_scale": 0.72,
+      "sun_tint": "#c9d4e8",
+      "sky_top": "#2f4468",
+      "sky_horizon": "#b7c2d2",
+      "ambient_energy_scale": 0.80,
+      "fog_density": 0.0055,
+      "fog_color": "#c3ccd6",
+      "ground_tint": "#c6ccd2",
+      "water_color": "#4c5c62",
+      "snow_coverage": 0.90,
+      "broadleaf_tint": "#6b6a5a",
+      "broadleaf_bare": true,
+      "pine_tint": "#3c5238"
+    },
+    {
+      "name": "spring",
+      "peak_day": 105,
+      "sun_energy_scale": 1.00,
+      "sun_tint": "#fff3e0",
+      "sky_top": "#37527e",
+      "sky_horizon": "#c4c9cf",
+      "ambient_energy_scale": 1.00,
+      "fog_density": 0.0035,
+      "fog_color": "#cdd3d0",
+      "ground_tint": "#eef2e4",
+      "water_color": "#57706f",
+      "snow_coverage": 0.00,
+      "broadleaf_tint": "#6e8a4a",
+      "broadleaf_bare": false,
+      "pine_tint": "#3e5232"
+    },
+    {
+      "name": "summer",
+      "peak_day": 195,
+      "sun_energy_scale": 1.12,
+      "sun_tint": "#fff1d6",
+      "sky_top": "#33507e",
+      "sky_horizon": "#bdc6cf",
+      "ambient_energy_scale": 1.08,
+      "fog_density": 0.0022,
+      "fog_color": "#d3d8dc",
+      "ground_tint": "#fbf6e6",
+      "water_color": "#5a6e70",
+      "snow_coverage": 0.00,
+      "broadleaf_tint": "#5c7440",
+      "broadleaf_bare": false,
+      "pine_tint": "#3e5232"
+    },
+    {
+      "name": "autumn",
+      "peak_day": 288,
+      "sun_energy_scale": 0.95,
+      "sun_tint": "#ffe6c0",
+      "sky_top": "#354c74",
+      "sky_horizon": "#c8bda9",
+      "ambient_energy_scale": 0.95,
+      "fog_density": 0.0040,
+      "fog_color": "#cdc7ba",
+      "ground_tint": "#f0e2c6",
+      "water_color": "#556a66",
+      "snow_coverage": 0.00,
+      "broadleaf_tint": "#8a6236",
+      "broadleaf_bare": false,
+      "pine_tint": "#3e5232"
+    }
+  ]
+}

@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://scripts/view/vegetation_renderer.gd" id="4_veg"]
 [ext_resource type="Script" path="res://scripts/view/founding_site_renderer.gd" id="5_site"]
 [ext_resource type="Script" path="res://scripts/view/site_status_overlay.gd" id="6_overlay"]
+[ext_resource type="Script" path="res://scripts/view/precipitation.gd" id="7_precip"]
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="8_hud"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -27,5 +29,11 @@ script = ExtResource("3_7tdlr")
 projection = 1
 size = 48.0
 
+[node name="Precipitation" type="Node3D" parent="." unique_id=1747990259]
+script = ExtResource("7_precip")
+
 [node name="SiteStatusOverlay" type="CanvasLayer" parent="." unique_id=1747990258]
 script = ExtResource("6_overlay")
+
+[node name="Hud" type="CanvasLayer" parent="." unique_id=1747990260]
+script = ExtResource("8_hud")

@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+; Broadleaf trees and scrub. Canopy recolours strongly with the season (see veg_foliage.gdshader);
+; driven by scripts/view/vegetation_renderer.gd.
+
+[ext_resource type="Shader" path="res://assets/materials/veg_foliage.gdshader" id="1_veg"]
+
+[resource]
+resource_name = "M_VegetationDeciduous"
+shader = ExtResource("1_veg")
+shader_parameter/foliage_tint = Color(0.36, 0.45, 0.25, 1)
+shader_parameter/foliage_recolor = 0.85
+shader_parameter/snow_amount = 0.0
+shader_parameter/snow_color = Color(0.87, 0.89, 0.92, 1)
+shader_parameter/base_roughness = 0.85

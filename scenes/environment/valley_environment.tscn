@@ -1,8 +1,10 @@
-[gd_scene format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Environment" path="res://scenes/environment/valley_environment.tres" id="1_k3u6c"]
+[ext_resource type="Script" path="res://scripts/view/sky_cycle.gd" id="2_sky"]
 
 [node name="ValleyEnvironment" type="Node3D" unique_id=620269046]
+script = ExtResource("2_sky")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1917205060]
 environment = ExtResource("1_k3u6c")

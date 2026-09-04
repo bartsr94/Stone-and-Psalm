@@ -2,10 +2,55 @@
   "_comment": "Every balance constant and every fixed 3D convention in the game. No magic numbers in .gd files, ever — see CLAUDE.md and docs/ARCHITECTURE_GUIDE.md §6. Values are addressed by dotted path: Tuning.get_num(\"camera.pitch_deg\"). All lengths are metres, because 1 unit = 1 metre.",
 
   "world": {
-    "_comment": "The conventions table in docs/ARCHITECTURE_GUIDE.md §4. Changing any of these later means remaking every asset, so they are recorded here once and read from here everywhere.",
+    "_comment": "The conventions table in docs/ARCHITECTURE_GUIDE.md §4. Changing any of these later means remaking every asset, so they are recorded here once and read from here everywhere. latitude_deg is the dale's latitude: it drives the daylight swing that is the core mechanic (docs/SIMULATION_SPEC.md §2.2), so it belongs with the conventions and not with tunable feel.",
     "terrain_cell_m": 2.0,
     "building_snap_m": 1.0,
-    "terrain_chunk_cells": 32
+    "terrain_chunk_cells": 32,
+    "latitude_deg": 54.0
+  },
+
+  "time": {
+    "_comment": "The authoritative clock, docs/SIMULATION_SPEC.md §2.1. minutes_per_day, days_per_year and the month lengths are calendar facts, not feel. real_seconds_per_day and the speed multipliers are feel and can be tuned freely. Leap years are ignored on purpose (placeholder). start_day_of_week is 0=Sunday; the founding is placed in mid-March, the season a house was actually founded in.",
+    "minutes_per_day": 1440,
+    "days_per_year": 365,
+    "month_lengths": [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+    "real_seconds_per_day_1x": 20.0,
+    "speed_multipliers": [0.0, 1.0, 3.0, 10.0],
+    "start_year": 1132,
+    "start_day_of_year": 75,
+    "start_day_of_week": 3,
+    "season_start_days": [335, 60, 152, 244]
+  },
+
+  "sky": {
+    "_comment": "Solar geometry and the day/night light rig. axial_tilt_deg is an astronomical constant (Earth's obliquity) and drives declination in scripts/sim/daylight.gd, which then gives the real altitude and bearing of the sun for any minute of any day. solar_noon_minute fixes local noon (the model ignores the equation of time). twilight_band_deg is how far below the horizon the sun still lights the sky; night_light_energy is the residual moonlight the directional light keeps once the sun is fully down. Sun colour, sky tint and fog keyframes by sun altitude live in data/sky.json.",
+    "axial_tilt_deg": 23.44,
+    "solar_noon_minute": 720,
+    "twilight_band_deg": 8.0,
+    "min_rendered_sun_altitude_deg": 0.4
+  },
+
+  "seasons": {
+    "_comment": "Phase 2.4 season blend. day-of-year keyframes in data/seasons.json are lerped by scripts/sim/season_curve.gd. snow_line_lapse_m is how much the winter snow line drops per unit of season snow_coverage; it is feel. transition_days softens the four keyframes into ramps rather than steps.",
+    "transition_days": 26.0,
+    "snow_line_base_m": 40.0,
+    "snow_line_lapse_m": 34.0
+  },
+
+  "weather": {
+    "_comment": "Phase 2.7 daily weather. Authoritative and deterministic from an injected Dice (docs/ARCHITECTURE_GUIDE.md §7). Seasonal mean temperature in °C and daily precipitation probability are lerped from the same season curve; day-to-day variation is bounded noise, then a 3-day trailing smooth. freeze_point_c gates frost; hard_frost_c gates the construction frost gate later.",
+    "rng_seed": 776112,
+    "smoothing_days": 3,
+    "temp_variation_c": 4.5,
+    "precip_variation": 0.22,
+    "freeze_point_c": 0.0,
+    "hard_frost_c": -3.0,
+    "coldest_day_of_year": 20,
+    "winter_mean_temp_c": 1.5,
+    "summer_mean_temp_c": 16.0,
+    "winter_precip_chance": 0.42,
+    "summer_precip_chance": 0.30,
+    "snow_below_temp_c": 1.0
   },
 
   "camera": {

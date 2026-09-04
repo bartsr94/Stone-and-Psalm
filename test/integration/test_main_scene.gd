@@ -15,7 +15,13 @@ func before_each() -> void:
 	# integration test receives the same freshly generated scene rather than depending on test
 	# ordering.
 	Terrain.build_preset("founding_valley")
+	# The sky cycle orients the sun from the clock, so pin it to a midsummer midday: the sun is
+	# well up, and the environment assertions below do not depend on which test ran last.
+	SimClock.deserialize({"abs_minute": (172 - 75) * 1440.0 + 720.0, "speed_index": 0})
 	_scene = add_child_autofree(load(MAIN_SCENE).instantiate())
+	# The HUD starts the clock at 1x on ready; hold it still again so time does not drift while
+	# a test inspects the sun.
+	SimClock.set_speed_index(0)
 
 
 func _find(node_name: String) -> Node:
@@ -98,6 +104,45 @@ func test_environment_has_the_things_quality_comes_from() -> void:
 	assert_not_null(env.sky, "and a sky resource to draw it from")
 
 
+func test_sky_cycle_drives_the_sun_from_the_clock() -> void:
+	var driver: Node3D = _find("ValleyEnvironment") as Node3D
+	assert_not_null(driver, "the environment scene carries the sky cycle script")
+	assert_true(driver.has_method("current_sun_altitude_deg"), "and it is the SkyCycle script")
+
+	# Pinned to midsummer midday in before_each: the sun should be high and bright.
+	var noon_altitude: float = driver.call("current_sun_altitude_deg")
+	assert_between(noon_altitude, 55.0, 62.0, "midsummer noon sun is ~59 degrees up")
+
+	var sun: DirectionalLight3D = _find("Sun") as DirectionalLight3D
+	assert_gt(sun.light_energy, 1.0, "full daylight energy at noon")
+	var light_dir: Vector3 = -sun.global_transform.basis.z
+	assert_lt(light_dir.y, 0.0, "the sunlight travels downward toward the ground")
+
+
+func test_sky_cycle_uses_a_private_environment_copy() -> void:
+	# It deep-duplicates the Environment on ready so runtime changes never touch the .tres.
+	var env: Environment = (_find("WorldEnvironment") as WorldEnvironment).environment
+	assert_eq(env.resource_path, "", "the live environment is an unsaved duplicate")
+
+
+func test_hud_shows_the_clock_and_drives_speed() -> void:
+	var hud: CanvasLayer = _find("Hud") as CanvasLayer
+	assert_not_null(hud, "the HUD is in the scene")
+
+	assert_true(hud.has_method("speed_buttons"), "it is the HUD script")
+	var buttons: Array = hud.call("speed_buttons")
+	assert_eq(buttons.size(), 4, "pause, 1x, 3x, 10x")
+
+	# Press 3x and the clock follows; the button reflects the state.
+	(buttons[2] as Button).pressed.emit()
+	assert_eq(SimClock.speed_index(), 2, "the 3x button set the clock speed")
+	assert_true((buttons[2] as Button).button_pressed, "and shows as the active speed")
+	assert_false((buttons[1] as Button).button_pressed, "1x is no longer active")
+
+	(buttons[0] as Button).pressed.emit()
+	assert_eq(SimClock.speed_index(), 0, "the pause button stopped the clock")
+
+
 func test_no_baked_global_illumination() -> void:
 	# Architecture Guide 4.6: SDFGI is too expensive for a builder, and lightmaps are
 	# incompatible with buildings appearing at runtime.
@@ -120,13 +165,32 @@ func test_terrain_renderer_has_all_chunks() -> void:
 	assert_eq(chunk_count, 36, "192 cells produce 6 by 6 32-cell chunks")
 
 
-func test_terrain_renderer_uses_the_shared_material() -> void:
+func test_terrain_renderer_uses_the_snow_shader_material() -> void:
 	var renderer: Node3D = _find("TerrainRenderer") as Node3D
 	var first_chunk := renderer.find_child("Chunk_0_0", true, false) as MeshInstance3D
+	var material := first_chunk.material_override as Material
 	assert_eq(
-		(first_chunk.material_override as Material).resource_path,
-		"res://assets/materials/m_stone_and_psalm.tres",
-		"terrain uses the shared vertex-colour material"
+		material.resource_path,
+		"res://assets/materials/m_terrain_ground.tres",
+		"terrain uses its vertex-colour + snow shader material (Arch Guide 4.7)"
+	)
+	assert_true(material is ShaderMaterial, "snow coverage is a shader parameter")
+
+
+func test_terrain_snow_follows_the_season() -> void:
+	var renderer: Node3D = _find("TerrainRenderer") as Node3D
+	var material := (renderer.find_child("Chunk_0_0", true, false) as MeshInstance3D).material_override
+
+	# before_each pins the clock to midsummer: no snow.
+	assert_almost_eq(
+		float(material.get_shader_parameter("snow_amount")), 0.0, 0.001, "no snow in high summer"
+	)
+
+	# Roll the clock to deep winter and let the day-passed handler run.
+	SimClock.deserialize({"abs_minute": (20 - 75 + 365) * 1440.0, "speed_index": 0})
+	renderer.call("_apply_season")
+	assert_gt(
+		float(material.get_shader_parameter("snow_amount")), 0.6, "the valley is under snow in January"
 	)
 
 
@@ -152,14 +216,61 @@ func test_vegetation_renderer_has_batched_categories() -> void:
 		assert_not_null(instances, "%s MultiMesh exists" % category)
 		assert_not_null(instances.multimesh, "%s has a MultiMesh" % category)
 		assert_not_null(instances.multimesh.mesh, "%s has a prop mesh" % category)
+		var material := instances.material_override as ShaderMaterial
+		assert_not_null(material, "%s uses a vegetation ShaderMaterial" % category)
 		assert_eq(
-			(instances.material_override as Material).resource_path,
-			"res://assets/materials/m_stone_and_psalm.tres",
-			"%s uses the shared material" % category
+			material.shader.resource_path,
+			"res://assets/materials/veg_foliage.gdshader",
+			"%s draws the shared vegetation foliage shader" % category
 		)
 	for populated in ["Trees", "Scrub", "Rocks", "Stumps", "FallenLogs", "Ferns", "Reeds"]:
 		var instances: MultiMeshInstance3D = renderer.find_child(populated, true, false) as MultiMeshInstance3D
 		assert_gt(instances.multimesh.instance_count, 0, "%s has visible instances" % populated)
+
+
+func test_vegetation_foliage_follows_the_season() -> void:
+	var renderer: Node3D = _find("VegetationRenderer") as Node3D
+	var trees := renderer.find_child("Trees", true, false) as MultiMeshInstance3D
+	var material := trees.material_override as ShaderMaterial
+
+	# before_each pins midsummer: broadleaves in full leaf, no snow.
+	assert_almost_eq(float(material.get_shader_parameter("snow_amount")), 0.0, 0.001, "no snow in summer")
+	var summer_tint: Color = material.get_shader_parameter("foliage_tint")
+	assert_gt(summer_tint.g, summer_tint.r, "summer canopy is green")
+
+	# Deep winter: bare, and under snow.
+	SimClock.deserialize({"abs_minute": (20 - 75 + 365) * 1440.0, "speed_index": 0})
+	renderer.call("_apply_season")
+	assert_gt(float(material.get_shader_parameter("snow_amount")), 0.6, "canopy takes snow in winter")
+	var winter_tint: Color = material.get_shader_parameter("foliage_tint")
+	assert_gt(winter_tint.r, winter_tint.g, "bare winter canopy is twig-brown, not green")
+
+
+func test_precipitation_follows_the_weather() -> void:
+	var precipitation: Node3D = _find("Precipitation") as Node3D
+	assert_not_null(precipitation, "the precipitation node is in the scene")
+	var rain := precipitation.find_child("Rain", false, false) as GPUParticles3D
+	var snow := precipitation.find_child("Snow", false, false) as GPUParticles3D
+	assert_not_null(rain, "a rain emitter")
+	assert_not_null(snow, "a snow emitter")
+
+	# A mild wet day: rain on, snow off. (dice: temp noise, precip noise, precipitation check.)
+	Weather.set_dice(ScriptedDice.new([0.5, 0.5, 0.02]))
+	Weather.roll_day(200)
+	assert_true(rain.emitting, "rain falls on a mild wet day")
+	assert_false(snow.emitting)
+
+	# A cold wet day: snow on, rain off.
+	Weather.set_dice(ScriptedDice.new([0.35, 0.5, 0.02]))
+	Weather.roll_day(20)
+	assert_true(snow.emitting, "snow falls on a cold wet day")
+	assert_false(rain.emitting)
+
+	# A dry day: nothing falling.
+	Weather.set_dice(ScriptedDice.new([0.5, 0.5, 0.99]))
+	Weather.roll_day(200)
+	assert_false(rain.emitting)
+	assert_false(snow.emitting)
 
 
 func test_vegetation_samples_are_jittered_inside_stride_tiles() -> void:

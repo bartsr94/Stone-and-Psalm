@@ -50,6 +50,17 @@ func get_int(path: String) -> int:
 	return 0
 
 
+## Returns the array at `path`, or an empty array with a pushed error if it is missing or not
+## an array. Used for tuning values that are lists — month lengths, speed multipliers, the
+## season keyframe boundaries.
+func get_array(path: String) -> Array:
+	var value: Variant = _resolve(path)
+	if value is Array:
+		return value
+	push_error("Tuning: %s is missing or not an array" % path)
+	return []
+
+
 func _resolve(path: String) -> Variant:
 	var node: Variant = _values
 	for key in path.split("."):

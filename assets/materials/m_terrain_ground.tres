@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+; The terrain ground material: vertex colour as albedo, plus a snow_amount blend. Terrain gets
+; its own shader (rather than the shared StandardMaterial3D that props use) only because snow
+; coverage has to be a shader parameter — Architecture Guide §4.7. Colour still comes from the
+; mesh Col attribute, so the valley reads as one game. Driven by scripts/view/terrain_renderer.gd.
+
+[ext_resource type="Shader" path="res://assets/materials/terrain_ground.gdshader" id="1_ground"]
+
+[resource]
+resource_name = "M_TerrainGround"
+shader = ExtResource("1_ground")
+shader_parameter/snow_amount = 0.0
+shader_parameter/snow_line_m = 40.0
+shader_parameter/snow_line_falloff_m = 22.0
+shader_parameter/snow_color = Color(0.87, 0.89, 0.92, 1)
+shader_parameter/base_roughness = 0.85

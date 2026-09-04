@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+; Pines and the inert props (rock, stump, fallen log, reeds). Evergreens barely shift with the
+; season, so the recolour is weak; the inert props are not green and are unaffected by it. Both
+; still take snow. Driven by scripts/view/vegetation_renderer.gd.
+
+[ext_resource type="Shader" path="res://assets/materials/veg_foliage.gdshader" id="1_veg"]
+
+[resource]
+resource_name = "M_VegetationEvergreen"
+shader = ExtResource("1_veg")
+shader_parameter/foliage_tint = Color(0.24, 0.32, 0.22, 1)
+shader_parameter/foliage_recolor = 0.2
+shader_parameter/snow_amount = 0.0
+shader_parameter/snow_color = Color(0.87, 0.89, 0.92, 1)
+shader_parameter/base_roughness = 0.85

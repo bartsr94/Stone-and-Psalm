@@ -17,7 +17,7 @@
 ## edits terrain yet, so in practice this rebuilds everything once on load and then idles.
 extends Node3D
 
-const MATERIAL_PATH := "res://assets/materials/m_stone_and_psalm.tres"
+const MATERIAL_PATH := "res://assets/materials/m_terrain_ground.tres"
 const RIVER_MATERIAL_PATH := "res://assets/materials/m_river_water.tres"
 
 ## Ground colour per terrain type. Woodland uses a canopy green for the ground beneath it: seen
@@ -35,6 +35,7 @@ const RIVER_BED_COLOUR := "mud"
 var _material: Material = null
 var _river_material: Material = null
 var _chunks: Dictionary = {}
+var _seasons := SeasonBlender.new()
 
 
 func _ready() -> void:
@@ -42,6 +43,34 @@ func _ready() -> void:
 	_river_material = load(RIVER_MATERIAL_PATH)
 	_build_river_surface()
 	_remesh_dirty()
+
+	SimClock.day_passed.connect(_on_day_passed)
+	_apply_season()
+
+
+func _on_day_passed(_day_of_year: int) -> void:
+	_apply_season()
+
+
+## Pushes the day's seasonal look into the shader parameters: how much snow lies on the ground
+## and how far down the moor it reaches, and the river's colour. The terrain mesh itself never
+## changes with the season — only these uniforms do.
+func _apply_season() -> void:
+	var state := _seasons.sample(SimClock.day_of_year())
+	if state.is_empty():
+		return
+
+	var snow: float = state["snow_coverage"]
+	var line_base: float = Tuning.get_num("seasons.snow_line_base_m")
+	var line_lapse: float = Tuning.get_num("seasons.snow_line_lapse_m")
+
+	if _material is ShaderMaterial:
+		_material.set_shader_parameter("snow_amount", snow)
+		# Deep winter drops the snow line toward the valley floor.
+		_material.set_shader_parameter("snow_line_m", line_base - line_lapse * snow)
+
+	if _river_material is ShaderMaterial:
+		_river_material.set_shader_parameter("water_color", state["water_color"])
 
 
 func _process(_delta: float) -> void:
