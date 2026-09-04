@@ -32,9 +32,11 @@ the same random pattern while preserving repeatability.
 ## Renderer sampling
 
 The renderer samples a coarse, category-specific cell stride from `data/vegetation.json` rather
-than attempting one tree per cell. This keeps the initial low-poly population legible and bounded
-while preserving the same coordinate-hash behaviour. Scale, rotation, and within-cell jitter are
-also derived from the seed, but are view transforms and are not part of the authoritative layout.
+than attempting one tree per cell. Each stride-sized tile contributes at most one candidate, but
+the sampled cell is itself deterministically jittered in both axes. This keeps the low-poly
+population legible and bounded without producing the vertical/horizontal rows of a fixed lattice.
+Scale, rotation, and within-cell jitter are also derived from the seed, but are view transforms and
+are not part of the authoritative layout.
 
 ## Renderer meshes
 

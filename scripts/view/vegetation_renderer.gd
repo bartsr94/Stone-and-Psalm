@@ -16,6 +16,11 @@ const STUMP_POSITION_SALT: int = 0x18C7A4D3
 const FALLEN_LOG_POSITION_SALT: int = 0x39D21B65
 const FERN_POSITION_SALT: int = 0x52A86EF1
 const REEDS_POSITION_SALT: int = 0x6F14C2A7
+const TREE_SAMPLE_SALT: int = 0x0B41D2E7
+const SCRUB_SAMPLE_SALT: int = 0x1C83A5F9
+const ROCK_SAMPLE_SALT: int = 0x2DA617CB
+const UNDERSTORY_SAMPLE_SALT: int = 0x3EC9289D
+const REEDS_SAMPLE_SALT: int = 0x4FDA3B6F
 
 var _settings: Dictionary = {}
 var _models: Dictionary = {}
@@ -70,8 +75,11 @@ func _populate() -> void:
 	var fern_settings: Dictionary = _settings["fern"]
 	var reeds_settings: Dictionary = _settings["reeds"]
 
-	for y in range(0, cells_across, tree_stride):
-		for x in range(0, cells_across, tree_stride):
+	for base_y in range(0, cells_across, tree_stride):
+		for base_x in range(0, cells_across, tree_stride):
+			var sample := _sample_cell(base_x, base_y, tree_stride, seed, TREE_SAMPLE_SALT)
+			var x: int = sample.x
+			var y: int = sample.y
 			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
 			if placement == VegetationLayout.Placement.TREE:
 				var xform := _transform_for_cell(x, y, seed, tree_settings, TREE_POSITION_SALT)
@@ -80,22 +88,31 @@ func _populate() -> void:
 				else:
 					broadleaf_transforms.append(xform)
 
-	for y in range(0, cells_across, scrub_stride):
-		for x in range(0, cells_across, scrub_stride):
+	for base_y in range(0, cells_across, scrub_stride):
+		for base_x in range(0, cells_across, scrub_stride):
+			var sample := _sample_cell(base_x, base_y, scrub_stride, seed, SCRUB_SAMPLE_SALT)
+			var x: int = sample.x
+			var y: int = sample.y
 			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
 			if placement == VegetationLayout.Placement.SCRUB:
 				scrub_transforms.append(_transform_for_cell(x, y, seed, scrub_settings, SCRUB_POSITION_SALT))
 
-	for y in range(0, cells_across, rock_stride):
-		for x in range(0, cells_across, rock_stride):
+	for base_y in range(0, cells_across, rock_stride):
+		for base_x in range(0, cells_across, rock_stride):
+			var sample := _sample_cell(base_x, base_y, rock_stride, seed, ROCK_SAMPLE_SALT)
+			var x: int = sample.x
+			var y: int = sample.y
 			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
 			if placement == VegetationLayout.Placement.ROCK:
 				rock_transforms.append(_transform_for_cell(x, y, seed, rock_settings, ROCK_POSITION_SALT))
 
 	# These are view-only understory accents. They use the same stable coordinate hash as the
 	# primary layout, but do not change its single-candidate TREE/SCRUB/ROCK contract.
-	for y in range(0, cells_across, understory_stride):
-		for x in range(0, cells_across, understory_stride):
+	for base_y in range(0, cells_across, understory_stride):
+		for base_x in range(0, cells_across, understory_stride):
+			var sample := _sample_cell(base_x, base_y, understory_stride, seed, UNDERSTORY_SAMPLE_SALT)
+			var x: int = sample.x
+			var y: int = sample.y
 			if not _woodland_eligible(x, y, tree_slope):
 				continue
 			var understory_value := VegetationLayout.cell_value(seed, x, y, STUMP_POSITION_SALT)
@@ -112,8 +129,11 @@ func _populate() -> void:
 
 	# Reeds sit on dry cells immediately beside the river, keeping their feet on the bank rather
 	# than in the water surface. The neighbour check makes this robust to a meandering channel.
-	for y in range(0, cells_across, reeds_stride):
-		for x in range(0, cells_across, reeds_stride):
+	for base_y in range(0, cells_across, reeds_stride):
+		for base_x in range(0, cells_across, reeds_stride):
+			var sample := _sample_cell(base_x, base_y, reeds_stride, seed, REEDS_SAMPLE_SALT)
+			var x: int = sample.x
+			var y: int = sample.y
 			if not _near_river(x, y) or Terrain.slope_radians_at(x, y) > scrub_slope:
 				continue
 			if VegetationLayout.should_place(float(_settings["reed_density"]), seed, x, y, REEDS_POSITION_SALT):
@@ -143,6 +163,25 @@ func _near_river(x: int, y: int) -> bool:
 		if Terrain.water_at(x + offset.x, y + offset.y) == TerrainTypes.Water.RIVER:
 			return true
 	return false
+
+
+## Returns one deterministic sample inside a stride-sized tile. Fixed lattice samples make the
+## population read as rows when viewed from far away; jittering each tile in both axes keeps the
+## same bounded candidate count while removing that grid signature.
+func _sample_cell(base_x: int, base_y: int, stride: int, seed: int, sample_salt: int) -> Vector2i:
+	var safe_stride: int = maxi(stride, 1)
+	var offset_x: int = mini(
+		int(VegetationLayout.cell_value(seed, base_x, base_y, sample_salt) * float(safe_stride)),
+		safe_stride - 1
+	)
+	var offset_y: int = mini(
+		int(VegetationLayout.cell_value(seed, base_x, base_y, sample_salt + 1) * float(safe_stride)),
+		safe_stride - 1
+	)
+	return Vector2i(
+		mini(base_x + offset_x, Terrain.cells_across() - 1),
+		mini(base_y + offset_y, Terrain.cells_across() - 1)
+	)
 
 
 func _placement(x: int, y: int, seed: int, tree_slope: float, scrub_slope: float) -> VegetationLayout.Placement:

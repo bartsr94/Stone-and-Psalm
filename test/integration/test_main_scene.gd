@@ -162,6 +162,21 @@ func test_vegetation_renderer_has_batched_categories() -> void:
 		assert_gt(instances.multimesh.instance_count, 0, "%s has visible instances" % populated)
 
 
+func test_vegetation_samples_are_jittered_inside_stride_tiles() -> void:
+	var renderer: Node = _find("VegetationRenderer")
+	var residues: Dictionary = {}
+	for base_y in range(0, 24, 3):
+		for base_x in range(0, 24, 3):
+			var sample: Vector2i = renderer.call(
+				"_sample_cell", base_x, base_y, 3, 20260904, 0x0B41D2E7
+			)
+			residues[Vector2i(sample.x % 3, sample.y % 3)] = true
+	assert_gt(
+		residues.size(), 4,
+		"jittered samples occupy multiple within-tile positions instead of a fixed grid row"
+	)
+
+
 func test_terrain_dimensions_match_the_founding_preset() -> void:
 	assert_eq(Terrain.cells_across(), 192, "the founding valley is 192 cells across")
 	assert_eq(Terrain.chunk_cells(), 32, "terrain chunks are 32 cells across")
