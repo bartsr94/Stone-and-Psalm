@@ -1,0 +1,66 @@
+{
+  "_comment": "Handcrafted terrain sites. Every number here was tuned by looking at a render, not derived. The founding valley is the one site the game ships with — procedural map generation is explicitly deferred (docs/planning/ROADMAP.md). Cell size comes from world.terrain_cell_m in tuning.json and is deliberately not repeated here. Distances are in cells, heights in metres. 'along' runs west to east down the dale (the +X axis); 'across' runs north to south (+Z).",
+
+  "founding_valley": {
+    "_comment": "A Yorkshire dale at 192 cells square — 384 m, matching SIMULATION_SPEC.md §3.1. The floor is wide and genuinely flat because the whole precinct has to be built on it; the two sides differ because a real dale is not symmetric.",
+
+    "cells_across": 192,
+
+    "river": {
+      "_comment": "A beck about 6 m wide, meandering across roughly one and a half wavelengths of the map.",
+      "centre_cell": 96.0,
+      "meander_amplitude_cells": 14.0,
+      "meander_wavelength_cells": 140.0,
+      "half_width_cells": 3.0,
+      "bank_blend_cells": 3.0,
+      "bed_depth_m": 1.8,
+      "water_depth_m": 1.1
+    },
+
+    "profile": {
+      "_comment": "floor_elevation_m is at the head of the dale; the floor falls downstream_fall_m from there. The flat floor is 60 m either side of the river, which is enough for a precinct.",
+      "floor_elevation_m": 14.0,
+      "downstream_fall_m": 5.0,
+      "floor_half_width_cells": 30.0,
+      "moor_ramp_cells": 22.0,
+
+      "_variation_comment": "Both sides narrow and widen, and rise and fall, along the length of the dale. Without this the valley sides are parallel ribbons and the whole thing reads as painted stripes rather than as ground — this is the single change that made it look like a place.",
+      "width_variation": 0.26,
+      "rise_variation": 0.20,
+
+      "north": {
+        "_comment": "The steeper, shadier side.",
+        "slope_half_width_cells": 66.0,
+        "slope_rise_m": 36.0,
+        "moor_rise_m": 7.0
+      },
+      "south": {
+        "_comment": "Longer and gentler, so the two sides do not mirror each other.",
+        "slope_half_width_cells": 78.0,
+        "slope_rise_m": 30.0,
+        "moor_rise_m": 9.0
+      }
+    },
+
+    "noise": {
+      "_comment": "Deterministic FastNoiseLite, not drawn dice. Two octaves: a broad undulation that gives the slopes shape, and a finer one that stops them reading as a mathematical surface.",
+      "seed": 20260904,
+      "profile_frequency": 0.006,
+      "broad_frequency": 0.013,
+      "detail_frequency": 0.045,
+      "detail_amplitude_m": 0.55,
+      "floor_amplitude_m": 0.30,
+      "slope_amplitude_m": 5.50,
+      "moor_amplitude_m": 4.00
+    },
+
+    "cover": {
+      "_comment": "Ground cover derived at build time. Anything steeper than rock_slope_degrees becomes bare gritstone, which is what puts outcrops and scree on the valley sides without authoring them.",
+      "rock_slope_degrees": 32.0,
+      "woodland_density": 0.75,
+      "woodland_density_variation": 0.25,
+      "moor_density": 0.03,
+      "treeline_elevation_m": 46.0
+    }
+  }
+}

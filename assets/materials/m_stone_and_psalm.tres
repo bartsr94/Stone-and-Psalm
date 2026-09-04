@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+; The one shared vertex-colour material, per docs/ARCHITECTURE_GUIDE.md §4.1. Terrain, trees,
+; rocks and buildings all use this: colour comes from the mesh's Col attribute, so a single
+; material covers the whole game and everything batches together.
+;
+; albedo_color stays white because it multiplies the vertex colour. Roughness 0.85 and metallic
+; 0 match what tools/blender/setup_material.py writes, so a .glb from the pipeline and a mesh
+; built in code light identically.
+
+[resource]
+resource_name = "M_StoneAndPsalm"
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+roughness = 0.85
+metallic = 0.0

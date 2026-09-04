@@ -54,6 +54,54 @@ A lit 3D scene renders with a working orthographic camera. Phase 1 — The Valle
 
 ---
 
+## WIP checkpoint — Phase 1 terrain, mid-lighting-pass
+
+Session ended mid-Phase-1 to preserve budget. State is committed but **not green**:
+`test_main_scene.gd` has 5 failing assertions because it still checks for Phase 0's
+`Ground`/`GreyboxBuilding` nodes and a 150 m shadow range, both of which Phase 1's
+`main.tscn` replaced with `TerrainRenderer` and a 400 m shadow range. Not a regression —
+just a test file that needs updating to match the new scene, first thing next session.
+
+What's built and working:
+
+- `data/terrain_presets.json` + `autoloads/terrain.gd`: the authoritative 192×192 cell grid
+  (384 m), built deterministically from tuned parameters — meandering river, elevation
+  7–58 m, meadow/woodland/moor/rock bands, each valley side varying independently along
+  its length (`_build_columns`) so the dale has spurs rather than being parallel ribbons.
+- `scripts/sim/valley_shape.gd`, `scripts/sim/terrain_types.gd`: pure, headless-testable —
+  **no unit tests written for these yet**, do that before extending them further.
+- `scripts/view/terrain_renderer.gd`: chunked mesh (36 chunks, dirty-chunk remeshing),
+  corner-averaged heights and colours so chunk edges and terrain-band boundaries blend.
+- `scripts/view/palette.gd`: `Palette.of()` for sRGB (materials/UI) vs `Palette.vertex()`
+  for linear (mesh `ARRAY_COLOR`) — **this distinction is load-bearing, not stylistic.**
+
+Three real bugs found only by rendering, fixed, worth knowing before touching this again:
+
+1. **Triangle winding was backwards** — the whole terrain was invisible (backface-culled)
+   from the only camera angle the game uses. Fixed in `_build_chunk_mesh`'s index order.
+2. **Vertex colours need `srgb_to_linear()`.** `StandardMaterial3D.albedo_color` converts
+   sRGB→linear for you; `ARRAY_COLOR` does not. Feeding it a raw palette hex washes
+   everything out to pale pastel — looked like a tonemap problem, wasn't one. This is why
+   `Palette.vertex()` exists as a separate method from `Palette.of()`.
+3. **`-s` tool scripts can't resolve autoload globals by name** (`Terrain`, `Tuning`) —
+   they're not registered at that script's compile time. Reach them via
+   `root.get_node_or_null("Terrain")` in throwaway render/diagnostic scripts instead.
+
+**Not yet verified:** whether the valley actually looks good with the sRGB fix and the
+400 m shadow range applied together — the last render (before the interrupt) was queued
+but its output wasn't reviewed. **First thing next session: render `main.tscn` at a wide
+zoom and look at it.** If it's not attractive yet, the fog/lighting numbers from the Phase 0
+decision log (150 m distance, 0.004 density / 512 m length) were tuned for a small box, not
+a 384 m valley — expect to retune them at this larger scale before calling task 1.7 done.
+
+Not started: 1.3 (this preset arguably already covers "handcrafted heightmap"), 1.4 (river
+shader — currently just a flat mud-coloured band, no water surface at all), 1.5 (uses the
+Phase 0 material path, not yet re-pointed at `m_stone_and_psalm.tres` everywhere), 1.6
+(trees/rocks via MultiMesh — `forest_density` data exists, nothing reads it yet), 1.7
+(lighting pass, see above).
+
+---
+
 ## Start here next session
 
 **Phase 0 is complete except task 0.7**, and its exit criteria are met: `Ctrl+F5` opens a lit 3D

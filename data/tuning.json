@@ -4,7 +4,8 @@
   "world": {
     "_comment": "The conventions table in docs/ARCHITECTURE_GUIDE.md §4. Changing any of these later means remaking every asset, so they are recorded here once and read from here everywhere.",
     "terrain_cell_m": 2.0,
-    "building_snap_m": 1.0
+    "building_snap_m": 1.0,
+    "terrain_chunk_cells": 32
   },
 
   "camera": {
