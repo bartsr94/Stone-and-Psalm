@@ -1,0 +1,176 @@
+## Renders terrain-derived vegetation using batched MultiMeshInstance3D nodes.
+##
+## This is presentation only. It reads the authoritative Terrain grid and the pure
+## VegetationLayout rules, then can be deleted and rebuilt without changing simulation state.
+## Each batch instances an authored low-poly .glb prop from assets/models/; the placement
+## contract does not depend on which mesh a batch uses, so swapping a prop is a view-only change.
+## Trees are split into broadleaf and pine batches by elevation — mesh choice, not a layout rule.
+extends Node3D
+
+const SETTINGS_PATH := "res://data/vegetation.json"
+const MATERIAL_PATH := "res://assets/materials/m_stone_and_psalm.tres"
+const TREE_POSITION_SALT: int = 0x2B992DD1
+const SCRUB_POSITION_SALT: int = 0x4C957F2D
+const ROCK_POSITION_SALT: int = 0x7A3E91B7
+
+var _settings: Dictionary = {}
+var _models: Dictionary = {}
+var _material: Material = null
+
+
+func _ready() -> void:
+	if not _load_settings():
+		return
+	_material = load(MATERIAL_PATH)
+	_populate()
+
+
+func _load_settings() -> bool:
+	var file := FileAccess.open(SETTINGS_PATH, FileAccess.READ)
+	if file == null:
+		push_error("VegetationRenderer: cannot open %s" % SETTINGS_PATH)
+		return false
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if not (parsed is Dictionary and parsed.has("founding_valley")):
+		push_error("VegetationRenderer: no founding_valley settings in %s" % SETTINGS_PATH)
+		return false
+	_settings = parsed["founding_valley"] as Dictionary
+	_models = parsed.get("models", {}) as Dictionary
+	return true
+
+
+func _populate() -> void:
+	var broadleaf_transforms: Array[Transform3D] = []
+	var pine_transforms: Array[Transform3D] = []
+	var scrub_transforms: Array[Transform3D] = []
+	var rock_transforms: Array[Transform3D] = []
+	var cells_across: int = Terrain.cells_across()
+	var seed: int = int(_settings["seed"])
+	var tree_slope: float = deg_to_rad(float(_settings["tree_max_slope_degrees"]))
+	var scrub_slope: float = deg_to_rad(float(_settings["scrub_max_slope_degrees"]))
+	var tree_stride: int = int(_settings["tree_sample_stride_cells"])
+	var scrub_stride: int = int(_settings["scrub_sample_stride_cells"])
+	var rock_stride: int = int(_settings["rock_sample_stride_cells"])
+	var pine_min_elevation: float = float(_settings["pine_min_elevation_m"])
+	var tree_settings: Dictionary = _settings["tree"]
+	var scrub_settings: Dictionary = _settings["scrub"]
+	var rock_settings: Dictionary = _settings["rock"]
+
+	for y in range(0, cells_across, tree_stride):
+		for x in range(0, cells_across, tree_stride):
+			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
+			if placement == VegetationLayout.Placement.TREE:
+				var xform := _transform_for_cell(x, y, seed, tree_settings, TREE_POSITION_SALT)
+				if Terrain.elevation_at(x, y) >= pine_min_elevation:
+					pine_transforms.append(xform)
+				else:
+					broadleaf_transforms.append(xform)
+
+	for y in range(0, cells_across, scrub_stride):
+		for x in range(0, cells_across, scrub_stride):
+			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
+			if placement == VegetationLayout.Placement.SCRUB:
+				scrub_transforms.append(_transform_for_cell(x, y, seed, scrub_settings, SCRUB_POSITION_SALT))
+
+	for y in range(0, cells_across, rock_stride):
+		for x in range(0, cells_across, rock_stride):
+			var placement := _placement(x, y, seed, tree_slope, scrub_slope)
+			if placement == VegetationLayout.Placement.ROCK:
+				rock_transforms.append(_transform_for_cell(x, y, seed, rock_settings, ROCK_POSITION_SALT))
+
+	add_child(_make_multimesh_instance("Trees", _prop_mesh("tree_broadleaf"), broadleaf_transforms))
+	add_child(_make_multimesh_instance("Pines", _prop_mesh("tree_pine"), pine_transforms))
+	add_child(_make_multimesh_instance("Scrub", _prop_mesh("scrub"), scrub_transforms))
+	add_child(_make_multimesh_instance("Rocks", _prop_mesh("rock"), rock_transforms))
+
+
+func _placement(x: int, y: int, seed: int, tree_slope: float, scrub_slope: float) -> VegetationLayout.Placement:
+	return VegetationLayout.placement_for_cell(
+		Terrain.terrain_at(x, y),
+		Terrain.water_at(x, y),
+		Terrain.forest_density_at(x, y),
+		Terrain.slope_radians_at(x, y),
+		Terrain.elevation_at(x, y),
+		seed,
+		x,
+		y,
+		tree_slope,
+		float(_settings["tree_max_elevation_m"]),
+		scrub_slope,
+		float(_settings["rock_density"])
+	)
+
+
+func _transform_for_cell(
+	x: int,
+	y: int,
+	seed: int,
+	settings: Dictionary,
+	position_salt: int
+) -> Transform3D:
+	var ground_position := Terrain.cell_to_world(x, y)
+	var cell_size: float = Terrain.cell_size_m()
+	var jitter_fraction: float = float(settings["jitter_fraction"])
+	var jitter := Vector2(
+		(VegetationLayout.cell_value(seed, x, y, position_salt) * 2.0 - 1.0) * cell_size * 0.5 * jitter_fraction,
+		(VegetationLayout.cell_value(seed, x, y, position_salt + 1) * 2.0 - 1.0) * cell_size * 0.5 * jitter_fraction
+	)
+	var rotation: float = VegetationLayout.cell_value(seed, x, y, position_salt + 2) * TAU
+	var scale: float = lerpf(
+		float(settings["scale_min"]),
+		float(settings["scale_max"]),
+		VegetationLayout.cell_value(seed, x, y, position_salt + 3)
+	)
+	var basis := Basis.from_euler(Vector3(0.0, rotation, 0.0)).scaled(Vector3.ONE * scale)
+	return Transform3D(basis, ground_position + Vector3(jitter.x, 0.0, jitter.y))
+
+
+func _make_multimesh_instance(
+	node_name: String,
+	mesh: Mesh,
+	transforms: Array[Transform3D]
+) -> MultiMeshInstance3D:
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	for index in transforms.size():
+		multimesh.set_instance_transform(index, transforms[index])
+
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = multimesh
+	instance.material_override = _material
+	return instance
+
+
+## Loads the authored .glb prop for a batch and returns its mesh. The .glb imports as a
+## PackedScene, so it is instanced once here, its MeshInstance3D's mesh is kept, and the
+## instance is discarded. Falls back to a unit box if the model is missing so the scene still
+## renders and the integration test still has a mesh to assert on.
+func _prop_mesh(model_key: String) -> Mesh:
+	var path: String = _models.get(model_key, "")
+	if path == "" or not ResourceLoader.exists(path):
+		push_error("VegetationRenderer: missing model '%s' (%s)" % [model_key, path])
+		return _fallback_mesh()
+	var packed := load(path) as PackedScene
+	if packed == null:
+		push_error("VegetationRenderer: %s is not a PackedScene" % path)
+		return _fallback_mesh()
+	var root := packed.instantiate()
+	var mesh: Mesh = null
+	var found := root.find_children("*", "MeshInstance3D", true, false)
+	if not found.is_empty():
+		mesh = (found[0] as MeshInstance3D).mesh
+	# Never entered the tree; free it now rather than deferring so no orphan lingers a frame.
+	root.free()
+	if mesh == null:
+		push_error("VegetationRenderer: no MeshInstance3D in %s" % path)
+		return _fallback_mesh()
+	return mesh
+
+
+func _fallback_mesh() -> Mesh:
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE
+	return box

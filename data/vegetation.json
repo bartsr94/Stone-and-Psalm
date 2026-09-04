@@ -1,0 +1,38 @@
+{
+  "_comment": "Visual vegetation settings. Placement is derived from terrain data and the fixed seed; these values tune sampling, eligibility, and the deliberately low-poly presentation. 'models' names the authored .glb props each batch instances — mesh choice is a view concern, so it lives here rather than in the pure VegetationLayout contract.",
+
+  "models": {
+    "tree_broadleaf": "res://assets/models/prop_tree_broadleaf.glb",
+    "tree_pine": "res://assets/models/prop_tree_pine.glb",
+    "scrub": "res://assets/models/prop_gorse.glb",
+    "rock": "res://assets/models/prop_rock_boulder.glb"
+  },
+
+  "founding_valley": {
+    "seed": 20260904,
+    "tree_sample_stride_cells": 3,
+    "scrub_sample_stride_cells": 2,
+    "rock_sample_stride_cells": 3,
+    "tree_max_slope_degrees": 28.0,
+    "tree_max_elevation_m": 46.0,
+    "pine_min_elevation_m": 33.0,
+    "scrub_max_slope_degrees": 40.0,
+    "rock_density": 0.18,
+
+    "tree": {
+      "scale_min": 0.82,
+      "scale_max": 1.18,
+      "jitter_fraction": 0.72
+    },
+    "scrub": {
+      "scale_min": 0.72,
+      "scale_max": 1.18,
+      "jitter_fraction": 0.72
+    },
+    "rock": {
+      "scale_min": 0.72,
+      "scale_max": 1.28,
+      "jitter_fraction": 0.72
+    }
+  }
+}
