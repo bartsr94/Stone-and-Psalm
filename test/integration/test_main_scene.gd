@@ -15,6 +15,9 @@ func before_each() -> void:
 	# integration test receives the same freshly generated scene rather than depending on test
 	# ordering.
 	Terrain.build_preset("founding_valley")
+	# The sky cycle orients the sun from the clock, so pin it to a midsummer midday: the sun is
+	# well up, and the environment assertions below do not depend on which test ran last.
+	SimClock.deserialize({"abs_minute": (172 - 75) * 1440.0 + 720.0, "speed_index": 0})
 	_scene = add_child_autofree(load(MAIN_SCENE).instantiate())
 
 
@@ -96,6 +99,27 @@ func test_environment_has_the_things_quality_comes_from() -> void:
 	assert_true(env.volumetric_fog_enabled, "volumetric fog on")
 	assert_eq(env.background_mode, Environment.BG_SKY, "a sky, not a flat colour")
 	assert_not_null(env.sky, "and a sky resource to draw it from")
+
+
+func test_sky_cycle_drives_the_sun_from_the_clock() -> void:
+	var driver: Node3D = _find("ValleyEnvironment") as Node3D
+	assert_not_null(driver, "the environment scene carries the sky cycle script")
+	assert_true(driver.has_method("current_sun_altitude_deg"), "and it is the SkyCycle script")
+
+	# Pinned to midsummer midday in before_each: the sun should be high and bright.
+	var noon_altitude: float = driver.call("current_sun_altitude_deg")
+	assert_between(noon_altitude, 55.0, 62.0, "midsummer noon sun is ~59 degrees up")
+
+	var sun: DirectionalLight3D = _find("Sun") as DirectionalLight3D
+	assert_gt(sun.light_energy, 1.0, "full daylight energy at noon")
+	var light_dir: Vector3 = -sun.global_transform.basis.z
+	assert_lt(light_dir.y, 0.0, "the sunlight travels downward toward the ground")
+
+
+func test_sky_cycle_uses_a_private_environment_copy() -> void:
+	# It deep-duplicates the Environment on ready so runtime changes never touch the .tres.
+	var env: Environment = (_find("WorldEnvironment") as WorldEnvironment).environment
+	assert_eq(env.resource_path, "", "the live environment is an unsaved duplicate")
 
 
 func test_no_baked_global_illumination() -> void:

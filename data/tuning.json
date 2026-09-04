@@ -27,8 +27,7 @@
     "axial_tilt_deg": 23.44,
     "solar_noon_minute": 720,
     "twilight_band_deg": 8.0,
-    "night_light_energy": 0.06,
-    "night_light_color": "#3a4664"
+    "min_rendered_sun_altitude_deg": 0.4
   },
 
   "seasons": {

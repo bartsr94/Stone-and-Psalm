@@ -1,0 +1,60 @@
+{
+  "_comment": "Phase 2.3 diurnal light rig. Keyframes are indexed by the sun's altitude above the horizon in degrees (scripts/sim/daylight.gd computes it for any minute of any day) and lerped by scripts/view/sky_cycle.gd. Below the lowest key the values hold flat (night); above the highest they hold flat (high noon). sun_energy is the directional light energy before the seasonal scale. fog_density_scale multiplies the seasonal fog density — mist thickens at dawn and dusk. Colours are sRGB hex.",
+
+  "keyframes": [
+    {
+      "at_altitude_deg": -8.0,
+      "sun_energy": 0.06,
+      "sun_color": "#3a4664",
+      "sky_top": "#0d1424",
+      "sky_horizon": "#1b2740",
+      "ambient_energy": 0.06,
+      "fog_density_scale": 1.45
+    },
+    {
+      "at_altitude_deg": -2.0,
+      "sun_energy": 0.08,
+      "sun_color": "#7a5a6a",
+      "sky_top": "#26314f",
+      "sky_horizon": "#5b4a5e",
+      "ambient_energy": 0.18,
+      "fog_density_scale": 1.7
+    },
+    {
+      "at_altitude_deg": 1.5,
+      "sun_energy": 0.55,
+      "sun_color": "#df8a4a",
+      "sky_top": "#3b4a6b",
+      "sky_horizon": "#cf8a63",
+      "ambient_energy": 0.40,
+      "fog_density_scale": 1.8
+    },
+    {
+      "at_altitude_deg": 8.0,
+      "sun_energy": 1.10,
+      "sun_color": "#eec07a",
+      "sky_top": "#4f6a9c",
+      "sky_horizon": "#d8b78d",
+      "ambient_energy": 0.65,
+      "fog_density_scale": 1.15
+    },
+    {
+      "at_altitude_deg": 24.0,
+      "sun_energy": 1.45,
+      "sun_color": "#fff2df",
+      "sky_top": "#3d547a",
+      "sky_horizon": "#bcc6d0",
+      "ambient_energy": 0.92,
+      "fog_density_scale": 1.0
+    },
+    {
+      "at_altitude_deg": 50.0,
+      "sun_energy": 1.6,
+      "sun_color": "#fff8ee",
+      "sky_top": "#35507a",
+      "sky_horizon": "#aebfd0",
+      "ambient_energy": 1.05,
+      "fog_density_scale": 0.88
+    }
+  ]
+}
