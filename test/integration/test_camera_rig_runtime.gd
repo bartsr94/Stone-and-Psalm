@@ -39,6 +39,11 @@ func _yaw_degrees() -> float:
 	return rad_to_deg(fposmod(atan2(_camera.position.x, _camera.position.z), TAU))
 
 
+func _pitch_degrees() -> float:
+	var forward: Vector3 = -_camera.global_transform.basis.z
+	return rad_to_deg(asin(-forward.y))
+
+
 func _send(event: InputEvent) -> void:
 	Input.parse_input_event(event)
 	await wait_process_frames(2)
@@ -123,15 +128,23 @@ func test_turning_settles_on_exactly_ninety_degrees() -> void:
 
 func test_holding_middle_mouse_and_dragging_rotates_freely() -> void:
 	await _send(_middle_button(true))
-	await _send(_middle_drag(Vector2(180.0, 0.0)))
+	await _send(_middle_drag(Vector2(-180.0, 0.0)))
 	await _send(_middle_button(false))
 
 	assert_almost_eq(_yaw_degrees(), 45.0, 0.01, "middle-drag can leave the camera between steps")
 
 
+func test_upward_middle_mouse_drag_lowers_the_camera_tilt() -> void:
+	await _send(_middle_button(true))
+	await _send(_middle_drag(Vector2(0.0, -80.0)))
+	await _send(_middle_button(false))
+
+	assert_almost_eq(_pitch_degrees(), 20.0, 0.01, "vertical drag freely changes the pitch")
+
+
 func test_qe_turns_from_the_mouse_selected_angle() -> void:
 	await _send(_middle_button(true))
-	await _send(_middle_drag(Vector2(180.0, 0.0)))
+	await _send(_middle_drag(Vector2(-180.0, 0.0)))
 	await _send(_middle_button(false))
 	await _send(_key_press(KEY_E))
 	_rig._process(Tuning.get_num("camera.yaw_turn_seconds") + 0.05)
@@ -156,14 +169,16 @@ func test_four_turns_return_to_the_start() -> void:
 	assert_almost_eq(_yaw_degrees(), 0.0, 0.01, "back to square after four turns")
 
 
-func test_pitch_holds_through_turning_and_zooming() -> void:
+func test_mouse_selected_pitch_holds_through_turning_and_zooming() -> void:
+	await _send(_middle_button(true))
+	await _send(_middle_drag(Vector2(0.0, -80.0)))
+	await _send(_middle_button(false))
 	await _send(_key_press(KEY_E))
 	_rig._process(Tuning.get_num("camera.yaw_turn_seconds") + 0.05)
 	await _send(_wheel(MOUSE_BUTTON_WHEEL_UP))
 	await wait_process_frames(10)
 
-	var forward: Vector3 = -_camera.global_transform.basis.z
 	assert_almost_eq(
-		rad_to_deg(asin(-forward.y)), 40.0, 0.01,
-		"the pitch is fixed, whatever else the camera does"
+		_pitch_degrees(), 20.0, 0.01,
+		"keyboard turning and zooming preserve the mouse-selected pitch"
 	)

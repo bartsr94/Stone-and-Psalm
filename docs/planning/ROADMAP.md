@@ -47,13 +47,13 @@ with a working year, a community with names, and the ability to fail.
 | 0.3 | Install GUT **9.6.0**, verify headless, pin it | Do this *before* the first test. 9.7.1 fails on 4.6.1 |
 | 0.4 | Git init, `.gitignore` (`.godot/`, `test_results.txt`, `test_errors.txt`) | Every paused project here that lacked git lost history |
 | 0.5 | Fix the 3D conventions table (Arch Guide §4) in code: world scale, cell size, axes | Changing these later means remaking every asset |
-| 0.6 | Orthographic camera rig: 40° pitch, 90° yaw steps, zoom clamp, pan | The single most-used piece of code in the game |
+| 0.6 | Orthographic camera rig: 40° starting pitch, continuous middle-drag yaw/pitch, 90° key steps, zoom clamp, pan | The single most-used piece of code in the game |
 | 0.7 | Download and vendor the greybox kit into `assets/kit/` | Permissive licence only. Record the licence |
 | 0.8 | `WorldEnvironment` v0: sun, sky, SSAO, fog | Rough is fine; Phase 2 makes it good |
 | 0.9 | `CLAUDE.md` with the verified test command | |
 
 **Exit criteria:** `Ctrl+F5` opens a lit 3D scene showing a ground plane and one greybox
-building, with a working orthographic camera you can pan, rotate in 90° steps, and zoom. GUT
+building, with a working orthographic camera you can pan, orbit and tilt by middle-drag, turn in 90° key steps, and zoom. GUT
 runs headless and reports 0 tests, 0 failures. Committed. **Screenshot taken.**
 
 ---

@@ -213,11 +213,11 @@ purpose is learning to make things look right.
 
 ## 11. Camera and Presentation
 
-- **Orthographic `Camera3D`**, fixed ~40° pitch, freely rotating around the vertical axis by
-  middle-mouse drag (with Q/E 90° steps), and a zoom range from
+- **Orthographic `Camera3D`**, starting at ~40° pitch and freely orbiting in yaw and pitch by
+  middle-mouse drag (with Q/E 90° yaw steps), and a zoom range from
   precinct overview down to reading a monk's habit colour.
-- Never a free-pitch camera. The fixed tilt keeps silhouettes and ground readability predictable
-  while allowing players the familiar continuous orbit used by city builders.
+- Pitch is limited short of the horizon and overhead flip, keeping the full city-builder orbit
+  useful and readable at either extreme.
 - Agents are individually visible and individually identifiable at mid zoom: **tonsured monks in
   the order's habit colour, bearded conversi in undyed russet**, and lay famuli in ordinary
   clothes. The visual distinction is historical and it is also the UI.
@@ -249,7 +249,7 @@ The information problem in a deep-chain game is the real design work.
 | **A murder mystery** | Narrative branching plus a deep sim is two games (§8). |
 | **A Rimworld needs/mood/relationship sim** | Named individuals with roles and skills give the flavour at a fraction of the cost. |
 | **Enterable building interiors** | Exterior-only. Agents despawn at doors. (Sim Spec Open Q 3.) |
-| **Free-look camera** | Fixed rig is a deliberate art-risk reduction (§11). |
+| **Camera roll / orbit flipping** | The camera remains upright and pitch-clamped for legibility (§11). |
 | **A trade network of rival settlements** | One town market and a road out is enough. |
 | **Fantasy or invented religion** | The whole point is the historical work. Palusteria stays in the other projects. |
 | **Multiplayer, procedural narrative, mod support** | Out of scope entirely. |

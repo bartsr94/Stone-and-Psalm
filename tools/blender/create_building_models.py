@@ -106,7 +106,8 @@ def plinth(b, width, depth, height, colour, courses=2):
               shades[i % 3], top_colour=mix(colour, "limestone_light", 0.45))
 
 
-def stone_walls(b, width, depth, base_z, height, colour, courses=5, quoins=True):
+def stone_walls(b, width, depth, base_z, height, colour, courses=5, quoins=True,
+                rubble_block_m=1.15):
     """Coursed rubble walling with dressed quoins at the corners.
 
     A stone building drawn as one box is four flat rectangles of identical colour, which at this
@@ -124,11 +125,40 @@ def stone_walls(b, width, depth, base_z, height, colour, courses=5, quoins=True)
     for i in range(courses):
         z = base_z + height * i / courses
         # Alternate courses sit proud, so a low sun rakes across them and throws its own line.
-        proud = 0.09 if i % 2 else 0.0
+        proud = 0.025 if i % 2 else 0.0
         top = mix(colour, "limestone_light", 0.5) if i == courses - 1 else None
         b.box((0.0, 0.0, z + height * 0.5 / courses),
               (width + proud, depth + proud, height / courses),
               shades[i % len(shades)], top_colour=top)
+
+    # Individual rubble faces break the remaining broad courses into hand-sized stones. They sit
+    # only a finger proud of the structural wall: enough for raking light and AO, without making
+    # the wall look assembled from toy bricks.
+    for face in ("-y", "+y", "-x", "+x"):
+        along_y = face.endswith("y")
+        span = width if along_y else depth
+        plane = (depth if along_y else width) * 0.5
+        sign = -1.0 if face.startswith("-") else 1.0
+        for row in range(courses):
+            course_h = height / courses
+            blocks = max(3, int(span / rubble_block_m))
+            block_w = span / blocks
+            stagger = block_w * 0.5 if row % 2 else 0.0
+            for column in range(blocks + 1):
+                left = -span * 0.5 + column * block_w - stagger
+                right = left + block_w
+                clipped_left, clipped_right = max(-span * 0.5, left), min(span * 0.5, right)
+                if clipped_right - clipped_left < 0.22:
+                    continue
+                variation = ((row * 7 + column * 11) % 5) / 4.0
+                shade = mix(colour, "limestone_light", 0.06 + variation * 0.24)
+                along = (clipped_left + clipped_right) * 0.5
+                z = base_z + (row + 0.5) * course_h
+                centre = ((along, plane * sign, z) if along_y
+                          else (plane * sign, along, z))
+                b.panel(face, centre,
+                        (clipped_right - clipped_left - 0.055, course_h * 0.78),
+                        shade, offset=0.045 + variation * 0.012)
 
     if quoins:
         # Dressed corner stones, alternating long-and-short up each angle. Quoins are the single
@@ -171,7 +201,7 @@ def timber_walls(b, width, depth, base_z, height, brace=True, infill=INFILL):
     b.box((0.0, 0.0, base_z + height * 0.5), (width, depth, height),
           infill, top_colour=mix(infill, FRAME, 0.5))
 
-    post = 0.30
+    post = 0.24
     for sx in (-1.0, 1.0):
         for sy in (-1.0, 1.0):
             b.box(((width * 0.5 - post * 0.35) * sx, (depth * 0.5 - post * 0.35) * sy,
@@ -189,9 +219,25 @@ def timber_walls(b, width, depth, base_z, height, brace=True, infill=INFILL):
             else:
                 b.panel(face, (width * 0.5 * sign, 0.0, z), (span, thick), FRAME, FRAME_PROUD)
 
-        rail(base_z + 0.17, 0.34)               # sill beam
-        rail(base_z + height * 0.54, 0.26)      # mid rail
-        rail(base_z + height - 0.19, 0.38)      # wall plate
+        # The daub was mixed and repaired bay by bay, never a perfectly uniform rendered slab.
+        # Keep the variation restrained so the frame remains the read at game distance.
+        bays = max(1, int(span / 1.9))
+        bay_w = span / bays
+        rows = ((base_z + height * 0.31, height * 0.38),
+                (base_z + height * 0.76, height * 0.38))
+        for bay in range(bays):
+            along = -span * 0.5 + (bay + 0.5) * bay_w
+            for row, (z, panel_h) in enumerate(rows):
+                ageing = 0.025 + ((bay * 3 + row * 5) % 4) * 0.018
+                shade = mix(infill, "oak_weathered", ageing)
+                centre = ((along, depth * 0.5 * sign, z) if along_y
+                          else (width * 0.5 * sign, along, z))
+                b.panel(face, centre, (max(0.18, bay_w - 0.18), panel_h),
+                        shade, FRAME_PROUD * 0.28)
+
+        rail(base_z + 0.14, 0.26)               # sill beam
+        rail(base_z + height * 0.54, 0.18)      # mid rail
+        rail(base_z + height - 0.15, 0.28)      # wall plate
 
         # Studs between the rails, in both the lower and the upper panel.
         studs = max(1, int(span / 1.9))
@@ -200,23 +246,137 @@ def timber_walls(b, width, depth, base_z, height, brace=True, infill=INFILL):
             for z, tall in ((base_z + height * 0.34, height * 0.30),
                             (base_z + height * 0.77, height * 0.36)):
                 if along_y:
-                    b.panel(face, (offset, depth * 0.5 * sign, z), (0.20, tall), FRAME,
+                    b.panel(face, (offset, depth * 0.5 * sign, z), (0.14, tall), FRAME,
                             FRAME_PROUD)
                 else:
-                    b.panel(face, (width * 0.5 * sign, offset, z), (0.20, tall), FRAME,
+                    b.panel(face, (width * 0.5 * sign, offset, z), (0.14, tall), FRAME,
                             FRAME_PROUD)
 
     if brace:
-        # Corner braces on the long walls. They are drawn as short members stepping up to the
-        # corner rather than as true diagonals: a diagonal quad would cost the same, but stepping
-        # keeps every panel axis-aligned and legible at the zoom the game is played at.
+        # True curved-growth corner braces. A continuous diagonal reads as joined carpentry in a
+        # close camera view; the former staircase of horizontal bars read as a UI stripe.
         for sy in (-1.0, 1.0):
             face = "+y" if sy > 0 else "-y"
             for sx in (-1.0, 1.0):
-                for step in range(3):
-                    x = (width * 0.5 - 0.45 - step * 0.42) * sx
-                    z = base_z + height * 0.60 + step * height * 0.10
-                    b.panel(face, (x, depth * 0.5 * sy, z), (0.5, 0.19), FRAME, FRAME_PROUD)
+                b.diagonal_panel(
+                    face, depth * 0.5 * sy,
+                    ((width * 0.5 - 1.45) * sx, base_z + height * 0.56),
+                    ((width * 0.5 - 0.18) * sx, base_z + height - 0.22),
+                    0.18, FRAME, FRAME_PROUD + 0.01)
+
+
+def shingle_surface(b, span_x, span_y, eaves_z, height, colour, courses):
+    """Overlapping, staggered oak shingles laid over the structural roof planes."""
+    hx, hy = span_x * 0.5, span_y * 0.5
+    rows = max(5, courses)
+    columns = max(4, min(18, int(span_x / 1.15)))
+    tile_w = span_x / columns
+    slope_length = math.hypot(hy, height)
+    normal_y = height / slope_length
+    normal_z = hy / slope_length
+    lift = 0.035
+    for slope in (-1.0, 1.0):
+        for row in range(rows):
+            t0, t1 = row / rows, (row + 1) / rows
+            y0 = slope * hy * (1.0 - t0) + slope * lift * normal_y
+            y1 = slope * hy * (1.0 - t1) + slope * lift * normal_y
+            z0 = eaves_z + height * t0 + lift * normal_z
+            z1 = eaves_z + height * t1 + lift * normal_z
+            start = -hx - (tile_w * 0.5 if row % 2 else 0.0)
+            for column in range(columns + 1):
+                left = max(-hx, start + column * tile_w) + 0.025
+                right = min(hx, start + (column + 1) * tile_w) - 0.025
+                if right - left < 0.12:
+                    continue
+                weathering = ((row * 5 + column * 3 + (1 if slope > 0 else 0)) % 6) / 5.0
+                shade = mix(colour, "oak_dark", 0.04 + weathering * 0.24)
+                if slope < 0:
+                    b.quad((left, y0, z0), (right, y0, z0),
+                           (right, y1, z1), (left, y1, z1), shade)
+                else:
+                    b.quad((right, y0, z0), (left, y0, z0),
+                           (left, y1, z1), (right, y1, z1), shade)
+
+
+def lead_sheet_surface(b, span_x, span_y, eaves_z, height, colour):
+    """Broad lead sheets with staggered rolls, replacing an undifferentiated grey plane."""
+    hx, hy = span_x * 0.5, span_y * 0.5
+    rows = 3
+    columns = max(4, min(10, int(span_x / 1.8)))
+    sheet_w = span_x / columns
+    slope_length = math.hypot(hy, height)
+    lift_y = height / slope_length * 0.025
+    lift_z = hy / slope_length * 0.025
+    for slope in (-1.0, 1.0):
+        for row in range(rows):
+            t0, t1 = row / rows, (row + 1) / rows
+            y0 = slope * (hy * (1.0 - t0) + lift_y)
+            y1 = slope * (hy * (1.0 - t1) + lift_y)
+            z0 = eaves_z + height * t0 + lift_z
+            z1 = eaves_z + height * t1 + lift_z
+            offset = sheet_w * 0.5 if row % 2 else 0.0
+            for column in range(columns + 1):
+                left = max(-hx, -hx + column * sheet_w - offset) + 0.018
+                right = min(hx, -hx + (column + 1) * sheet_w - offset) - 0.018
+                if right - left < 0.12:
+                    continue
+                shade = mix(colour, "slate", 0.04 + ((row + column) % 4) * 0.035)
+                if slope < 0:
+                    b.quad((left, y0, z0), (right, y0, z0),
+                           (right, y1, z1), (left, y1, z1), shade)
+                else:
+                    b.quad((right, y0, z0), (left, y0, z0),
+                           (left, y1, z1), (right, y1, z1), shade)
+
+
+def thatch_fringe(b, span_x, span_y, eaves_z, colour):
+    """Uneven hanging bundles that keep a thatched eave from ending as a ruler-straight box."""
+    hx, hy = span_x * 0.5, span_y * 0.5
+    bundles = max(8, min(22, int(span_x / 0.7)))
+    bundle_w = span_x / bundles
+    for slope in (-1.0, 1.0):
+        y = slope * (hy + 0.235)
+        for i in range(bundles):
+            left = -hx + i * bundle_w
+            right = left + bundle_w + 0.025
+            drop = 0.15 + (i * 7 % 5) * 0.035
+            shade = mix(colour, "thatch_old", 0.18 + (i * 3 % 4) * 0.09)
+            corners = ((left, y, eaves_z + 0.08), (right, y, eaves_z + 0.08),
+                       (right - 0.035, y, eaves_z - drop),
+                       (left + 0.02, y, eaves_z - drop * 0.82))
+            if slope < 0:
+                corners = tuple(reversed(corners))
+            b.quad(*corners, shade)
+
+
+def thatch_weathering(b, span_x, span_y, eaves_z, height, colour):
+    """Sparse, broad repairs and damp patches on an otherwise continuous thatched slope."""
+    hx, hy = span_x * 0.5, span_y * 0.5
+    rows = 5
+    columns = max(5, min(14, int(span_x / 1.45)))
+    patch_w = span_x / columns
+    slope_length = math.hypot(hy, height)
+    lift_y = height / slope_length * 0.025
+    lift_z = hy / slope_length * 0.025
+    for slope in (-1.0, 1.0):
+        for row in range(rows):
+            t0, t1 = row / rows, (row + 1) / rows
+            y0 = slope * (hy * (1.0 - t0) + lift_y)
+            y1 = slope * (hy * (1.0 - t1) + lift_y)
+            z0 = eaves_z + height * t0 + lift_z
+            z1 = eaves_z + height * t1 + lift_z
+            for column in range(columns):
+                if (row * 5 + column * 7 + (1 if slope > 0 else 0)) % 4:
+                    continue
+                left = -hx + column * patch_w + patch_w * 0.10
+                right = min(hx, left + patch_w * 1.35)
+                shade = mix(colour, "thatch_old", 0.08 + ((row + column) % 3) * 0.05)
+                if slope < 0:
+                    b.quad((left, y0, z0), (right, y0, z0),
+                           (right, y1, z1), (left, y1, z1), shade)
+                else:
+                    b.quad((right, y0, z0), (left, y0, z0),
+                           (left, y1, z1), (right, y1, z1), shade)
 
 
 def roof(b, width, depth, eaves_z, colour, pitch=0.52, ridge_colour="oak_dark",
@@ -233,12 +393,14 @@ def roof(b, width, depth, eaves_z, colour, pitch=0.52, ridge_colour="oak_dark",
                  ridge_colour=mix(colour, "oak_dark", 0.22),
                  gable_colour=gable_colour or mix(colour, "oak_dark", 0.10),
                  courses=courses,
-                 course_contrast=0.30 if thatched else 0.46,
+                 course_contrast=0.09 if thatched else 0.16,
                  eaves_thickness=0.46 if thatched else 0.18)
     if thatched:
+        thatch_fringe(b, span_x, span_y, eaves_z, colour)
+        thatch_weathering(b, span_x, span_y, eaves_z, height, colour)
         # A thatched ridge is a rolled, pegged cap sitting proud of both pitches, not a timber.
-        b.box((0.0, 0.0, eaves_z + height - 0.02), (span_x * 0.99, 0.86, 0.5),
-              mix(colour, "limestone_light", 0.16), top_colour=colour)
+        b.cylinder((-span_x * 0.495, 0.0, eaves_z + height + 0.02), 0.31,
+                   span_x * 0.99, 8, mix(colour, "thatch_old", 0.12), colour, direction="x")
         # Hazel spars pegging the ridge down. They have to stay small: at 1.1 m they spanned both
         # pitches and read from the game camera as a ladder painted down the middle of the roof,
         # which was the loudest thing on the building.
@@ -248,6 +410,10 @@ def roof(b, width, depth, eaves_z, colour, pitch=0.52, ridge_colour="oak_dark",
             b.box((x, 0.0, eaves_z + height + 0.20), (0.08, 0.62, 0.07),
                   mix(colour, "oak_dark", 0.35))
     else:
+        if colour == "shingle":
+            shingle_surface(b, span_x, span_y, eaves_z, height, colour, courses + 1)
+        elif colour == "lead_roof":
+            lead_sheet_surface(b, span_x, span_y, eaves_z, height, colour)
         b.box((0.0, 0.0, eaves_z + height + 0.04), (span_x + 0.16, 0.30, 0.26), ridge_colour)
     return height
 
@@ -264,6 +430,11 @@ def door(b, width, depth, base_z, height=2.1, span=1.5, face="-y", colour="oak_w
         b.panel(face, (x, at, base_z + height * 0.5), (0.05, height - 0.1), FRAME, 0.13)
     for z in (base_z + height * 0.24, base_z + height * 0.78):
         b.panel(face, (0.0, at, z), (span - 0.1, 0.13), FRAME, 0.13)
+    # Forged strap hinges and a latch: small dark asymmetry makes this read as an operable door.
+    hinge_x = -span * 0.36
+    for z in (base_z + height * 0.24, base_z + height * 0.76):
+        b.panel(face, (hinge_x, at, z), (span * 0.42, 0.07), "iron", 0.15)
+    b.panel(face, (span * 0.28, at, base_z + height * 0.50), (0.16, 0.10), "iron", 0.16)
 
 
 def windows(b, width, depth, base_z, height, count=2):
@@ -272,11 +443,14 @@ def windows(b, width, depth, base_z, height, count=2):
         x = -width * 0.35 + width * 0.7 * (i / max(1, count - 1)) if count > 1 else 0.0
         for face in ("-y", "+y"):
             sign = 1.0 if face == "+y" else -1.0
-            b.panel(face, (x, depth * 0.5 * sign, base_z + height), (0.78, 0.80), FRAME, 0.09)
-            b.panel(face, (x, depth * 0.5 * sign, base_z + height), (0.60, 0.62), "oak_dark",
+            b.panel(face, (x, depth * 0.5 * sign, base_z + height), (0.72, 0.76), FRAME, 0.09)
+            b.panel(face, (x, depth * 0.5 * sign, base_z + height), (0.52, 0.56), "charcoal",
                     0.12)
-            b.panel(face, (x + 0.52, depth * 0.5 * sign, base_z + height), (0.40, 0.72),
-                    FRAME_LIGHT, 0.10)
+            # Slender timber mullion and projecting sill instead of a flat dark rectangle.
+            b.panel(face, (x, depth * 0.5 * sign, base_z + height), (0.08, 0.56),
+                    FRAME_LIGHT, 0.14)
+            b.panel(face, (x, depth * 0.5 * sign, base_z + height - 0.32), (0.78, 0.10),
+                    FRAME_LIGHT, 0.14)
 
 
 def gable_infill(b, width, depth, eaves_z, roof_h, colour=INFILL):
@@ -286,7 +460,7 @@ def gable_infill(b, width, depth, eaves_z, roof_h, colour=INFILL):
     by `EAVES_M` on every side, so a panel placed on the wall line sits behind the roof's own
     gable triangle and never shows — which is how the first pass ended up with a blank cream
     triangle where the most-photographed face of the building should be. A gable is a large flat
-    area pointed straight at the camera for two of the four yaw steps, so it is worth the
+    area pointed straight at the camera in two of the cardinal views, so it is worth the
     twenty triangles."""
     span_x = width + EAVES_M * 2.0
     span_y = depth + EAVES_M * 2.0
@@ -302,17 +476,12 @@ def gable_infill(b, width, depth, eaves_z, roof_h, colour=INFILL):
         b.panel(face, (x, 0.0, eaves_z + roof_h * 0.52), (0.28, roof_h * 0.86), FRAME, proud)
         # A collar beam across the middle of the truss.
         b.panel(face, (x, 0.0, eaves_z + roof_h * 0.55), (span_y * 0.42, 0.24), FRAME, proud)
-        # A queen post each side of the king post, rising from the tie beam to the rafter line.
-        # Every member here is vertical or horizontal on purpose: a thin diagonal aliases into a
-        # dashed line at the zoom this game is played at, and reads as damage rather than framing.
+        # Raking struts each side of the king post expose the actual roof truss construction.
         for sy in (-1.0, 1.0):
-            for t in (0.24, 0.46):
-                y = span_y * 0.5 * t * sy
-                top = eaves_z + roof_h * (1.0 - t) * 0.94
-                bottom = eaves_z + 0.42
-                if top - bottom < 0.4:
-                    continue
-                b.panel(face, (x, y, (top + bottom) * 0.5), (0.22, top - bottom), FRAME, proud)
+            b.diagonal_panel(face, x,
+                             (0.02 * sy, eaves_z + roof_h * 0.62),
+                             (span_y * 0.30 * sy, eaves_z + 0.42),
+                             0.18, FRAME, proud)
 
 
 def gable_vent(b, width, depth, eaves_z, roof_h, sx=-1.0):
@@ -550,7 +719,8 @@ def make_tithe_barn():
     plinth_h, wall_h = 0.55, 4.6
 
     plinth(b, width, depth, plinth_h, "gritstone")
-    stone_walls(b, width, depth, plinth_h, wall_h, "limestone_mid", courses=6)
+    stone_walls(b, width, depth, plinth_h, wall_h, "limestone_mid", courses=6,
+                rubble_block_m=2.2)
     # Buttresses down both long walls: the detail that makes stone read as stone at this size.
     count = max(3, int(width / 3.4))
     for i in range(count + 1):

@@ -221,14 +221,14 @@ The language and engine sections above apply generally. These are the project's 
 conventions — see `docs/ARCHITECTURE_GUIDE.md` §4 for the rationale. Do not renegotiate them
 casually.
 
-### Camera — orthographic, fixed
+### Camera — orthographic orbit
 
-- `Camera3D.projection = PROJECTION_ORTHOGONAL`, `size` set for the tile scale, **40° pitch
-  fixed**, yaw in **90° steps only**. No free rotation, no perspective, no zoom-to-cursor.
+- `Camera3D.projection = PROJECTION_ORTHOGONAL`, `size` set for the tile scale, starting at
+  **40° pitch**. Middle-mouse drag controls continuous yaw and 15–80° pitch; Q/E still turn in
+  animated **90° yaw steps**. No roll, no perspective, no zoom-to-cursor.
 - 1 world unit = 1 metre; terrain cell is 2 m × 2 m. Snap building placement to the 2 m grid.
-- Because the camera never pitches or rolls, you never need basis-drift `orthonormalized()`
-  bookkeeping the flight-sim sibling projects need — the camera transform is essentially a
-  fixed offset plus a yaw quarter-turn.
+- Because the camera never rolls and its transform is rebuilt from yaw and clamped pitch, you
+  never need basis-drift `orthonormalized()` bookkeeping.
 
 ### One shared material
 

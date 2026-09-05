@@ -45,10 +45,10 @@ func test_camera_is_orthographic() -> void:
 	)
 
 
-func test_camera_pitch_is_forty_degrees() -> void:
+func test_camera_starts_at_forty_degrees() -> void:
 	var forward: Vector3 = -_camera().global_transform.basis.z
 	var pitch_degrees: float = rad_to_deg(asin(-forward.y))
-	assert_almost_eq(pitch_degrees, 40.0, 0.01, "the camera looks down 40 degrees")
+	assert_almost_eq(pitch_degrees, 40.0, 0.01, "the camera starts looking down 40 degrees")
 
 
 func test_camera_is_above_and_behind_its_focus() -> void:

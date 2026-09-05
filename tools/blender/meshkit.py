@@ -289,6 +289,36 @@ class MeshBuilder:
                 corners = tuple(reversed(corners))
         self.quad(*corners, colour)
 
+    def diagonal_panel(self, face, plane, start, end, thickness, colour, offset=0.02):
+        """A flat timber or iron member running diagonally across a wall face.
+
+        `start` and `end` are `(along_wall, z)` pairs; `plane` is the wall's x or y coordinate.
+        Unlike a staircase of small horizontal panels, this produces a single continuous brace
+        with a convincing joint at each end and no aliasing gaps in close views.
+        """
+        a0, z0 = start
+        a1, z1 = end
+        da, dz = a1 - a0, z1 - z0
+        length = math.hypot(da, dz)
+        if length <= 1e-6:
+            return
+        # Perpendicular to the member in wall-local (along, z) space.
+        pa = -dz / length * thickness * 0.5
+        pz = da / length * thickness * 0.5
+        local = ((a0 + pa, z0 + pz), (a1 + pa, z1 + pz),
+                 (a1 - pa, z1 - pz), (a0 - pa, z0 - pz))
+        if face in ("-y", "+y"):
+            wall = plane - offset if face == "-y" else plane + offset
+            corners = tuple((along, wall, z) for along, z in local)
+            if face == "-y":
+                corners = tuple(reversed(corners))
+        else:
+            wall = plane - offset if face == "-x" else plane + offset
+            corners = tuple((wall, along, z) for along, z in local)
+            if face == "+x":
+                corners = tuple(reversed(corners))
+        self.quad(*corners, colour)
+
     def swap_xy(self):
         """Mirror the whole mesh across the x=y diagonal, turning a hall authored ridge-along-X
         into the same hall ridge-along-Y. Buildings are authored long-axis-first and swapped when

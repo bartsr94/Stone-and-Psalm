@@ -133,7 +133,7 @@ items, not Phase 2 regressions.
 | 0.3 | Install GUT 9.6.0, verify headless, pin | ✅ Done | Vendored into `addons/gut/`; 1/1 smoke test passes headless on 4.6.1 |
 | 0.4 | Git init + `.gitignore` | ✅ Done | Repo existed with docs commit; `.gitignore` merged, LFS added after |
 | 0.5 | Fix 3D conventions in code | ✅ Done | `data/tuning.json` + `autoloads/tuning.gd`; locked by `test_tuning.gd` |
-| 0.6 | Orthographic camera rig | ✅ Done | `scripts/view/camera_rig.gd`; pan, 90° yaw steps, zoom clamp |
+| 0.6 | Orthographic camera rig | ✅ Done | `scripts/view/camera_rig.gd`; pan, continuous middle-drag yaw/pitch, 90° key steps, zoom clamp |
 | 0.7 | Vendor greybox kit into `assets/kit/` | 🔲 Not started | **Decision needed.** Not required for Phase 0 — the greybox building is a `BoxMesh` |
 | 0.8 | `WorldEnvironment` v0 | ✅ Done | `scenes/environment/`; sky, sun, SSAO, SSIL, volumetric fog |
 | 0.9 | Verify the test command, record it in CLAUDE.md | ✅ Done | Command in CLAUDE.md works verbatim; a fresh checkout needs one `--headless --import` pass first (generates GUT's class_name cache) — not needed again after |

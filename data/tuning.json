@@ -93,11 +93,14 @@
   },
 
   "camera": {
-    "_comment": "The orthographic rig, docs/ARCHITECTURE_GUIDE.md §4. Pitch, keyboard yaw step and the ortho range are conventions rather than taste — the rest is feel and can be tuned freely. distance_m is the exception: because the projection is orthographic it has no effect on apparent size, but volumetric fog and the shadow range are both measured from the camera, so a distant camera drowns the whole scene in fog and pushes it past directional_shadow_max_distance. Keep it just large enough to clear the geometry at the widest zoom.",
+    "_comment": "The orthographic rig, docs/ARCHITECTURE_GUIDE.md §4. Pitch limits, keyboard yaw step and the ortho range are conventions rather than taste — the rest is feel and can be tuned freely. distance_m is the exception: because the projection is orthographic it has no effect on apparent size, but volumetric fog and the shadow range are both measured from the camera, so a distant camera drowns the whole scene in fog and pushes it past directional_shadow_max_distance. Keep it just large enough to clear the geometry at the widest zoom.",
     "pitch_deg": 40.0,
+    "pitch_min_deg": 15.0,
+    "pitch_max_deg": 80.0,
     "yaw_step_deg": 90.0,
     "yaw_turn_seconds": 0.25,
     "mouse_yaw_degrees_per_pixel": 0.25,
+    "mouse_pitch_degrees_per_pixel": 0.25,
     "ortho_size_min_m": 20.0,
     "ortho_size_max_m": 160.0,
     "ortho_size_start_m": 44.0,

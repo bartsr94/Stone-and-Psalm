@@ -170,7 +170,7 @@ Changing these later means remaking every asset. Decide once, here.
 | **Up axis** | +Y (Godot default) |
 | **Model forward** | −Z (Godot default). Blender export must match — see §4.3 |
 | **Camera projection** | **Orthographic** |
-| **Camera pitch** | **40°**, fixed |
+| **Camera pitch** | Starts at **40°**; continuous middle-mouse tilt from 15° to 80° |
 | **Camera yaw** | Continuous 360° middle-mouse orbit; Q/E step 90° over 0.25 s |
 | **Ortho size range** | 20 m (close) to 160 m (precinct overview) |
 | **Shadows** | One `DirectionalLight3D`, 4 cascades, 150 m range |
