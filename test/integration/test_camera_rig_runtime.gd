@@ -17,6 +17,9 @@ var _camera: Camera3D = null
 
 
 func before_each() -> void:
+	# Mouse buttons route through Control hit-testing before `_unhandled_input`; use a real-sized
+	# viewport so a fixed HUD panel cannot cover the whole headless runner's 64x64 default.
+	get_tree().root.size = Vector2i(1600, 900)
 	var scene: Node = add_child_autofree(load(MAIN_SCENE).instantiate())
 	_rig = scene.find_child("CameraRig", true, false) as Node3D
 	_camera = scene.find_child("Camera3D", true, false) as Camera3D
@@ -31,7 +34,9 @@ func after_each() -> void:
 
 
 func _yaw_degrees() -> float:
-	return rad_to_deg(fposmod(_camera.global_transform.basis.get_euler().y, TAU))
+	# Euler extraction chooses an equivalent representation past 90°. The camera's orbit
+	# position gives an unambiguous full-circle yaw instead.
+	return rad_to_deg(fposmod(atan2(_camera.position.x, _camera.position.z), TAU))
 
 
 func _send(event: InputEvent) -> void:
@@ -50,6 +55,22 @@ func _wheel(button: MouseButton) -> InputEventMouseButton:
 	var event := InputEventMouseButton.new()
 	event.button_index = button
 	event.pressed = true
+	return event
+
+
+func _middle_button(pressed: bool) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_MIDDLE
+	event.pressed = pressed
+	event.position = Vector2(800.0, 450.0)
+	return event
+
+
+func _middle_drag(relative: Vector2) -> InputEventMouseMotion:
+	var event := InputEventMouseMotion.new()
+	event.position = Vector2(800.0, 450.0) + relative
+	event.relative = relative
+	event.button_mask = MOUSE_BUTTON_MASK_MIDDLE
 	return event
 
 
@@ -98,6 +119,24 @@ func test_turning_settles_on_exactly_ninety_degrees() -> void:
 	_rig._process(Tuning.get_num("camera.yaw_turn_seconds") + 0.05)
 
 	assert_almost_eq(_yaw_degrees(), 90.0, 0.01, "one turn is exactly a quarter")
+
+
+func test_holding_middle_mouse_and_dragging_rotates_freely() -> void:
+	await _send(_middle_button(true))
+	await _send(_middle_drag(Vector2(180.0, 0.0)))
+	await _send(_middle_button(false))
+
+	assert_almost_eq(_yaw_degrees(), 45.0, 0.01, "middle-drag can leave the camera between steps")
+
+
+func test_qe_turns_from_the_mouse_selected_angle() -> void:
+	await _send(_middle_button(true))
+	await _send(_middle_drag(Vector2(180.0, 0.0)))
+	await _send(_middle_button(false))
+	await _send(_key_press(KEY_E))
+	_rig._process(Tuning.get_num("camera.yaw_turn_seconds") + 0.05)
+
+	assert_almost_eq(_yaw_degrees(), 135.0, 0.01, "Q/E continues 90 degrees from free yaw")
 
 
 func test_turning_the_other_way_wraps_to_two_seventy() -> void:

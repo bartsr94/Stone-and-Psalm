@@ -6,37 +6,25 @@
 extends GutTest
 
 
-func test_step_wraps_past_both_ends() -> void:
-	assert_eq(CameraRig.wrapped_step(0, 4), 0, "zero is unchanged")
-	assert_eq(CameraRig.wrapped_step(4, 4), 0, "one turn past the last step comes round")
-	assert_eq(CameraRig.wrapped_step(-1, 4), 3, "turning back from zero reaches the last step")
-	assert_eq(CameraRig.wrapped_step(-5, 4), 3, "and does so however many times round")
-
-
-func test_yaw_for_step() -> void:
-	assert_almost_eq(CameraRig.yaw_for_step(0, 90.0), 0.0, 0.0001, "step 0 faces zero")
-	assert_almost_eq(CameraRig.yaw_for_step(1, 90.0), PI / 2.0, 0.0001, "step 1 is a quarter turn")
-	assert_almost_eq(CameraRig.yaw_for_step(3, 90.0), 3.0 * PI / 2.0, 0.0001, "step 3 is three quarters")
-
-
-func test_shortest_arc_takes_the_short_way_round() -> void:
-	# The case that matters: turning from step 0 back to step 3 must go −90°, not +270°.
+func test_mouse_drag_rotates_freely_and_wraps_full_turns() -> void:
 	assert_almost_eq(
-		CameraRig.shortest_arc(0.0, 3.0 * PI / 2.0), -PI / 2.0, 0.0001,
-		"0 to 270 degrees is a quarter turn backwards"
+		CameraRig.yaw_after_mouse_drag(0.0, 180.0, 0.25),
+		PI / 4.0,
+		0.0001,
+		"180 horizontal pixels produce a smooth 45 degree turn"
 	)
 	assert_almost_eq(
-		CameraRig.shortest_arc(3.0 * PI / 2.0, 0.0), PI / 2.0, 0.0001,
-		"and the reverse is a quarter turn forwards"
+		CameraRig.yaw_after_mouse_drag(0.0, 1440.0, 0.25),
+		0.0,
+		0.0001,
+		"a full drag rotation wraps exactly to the start"
 	)
-	assert_almost_eq(CameraRig.shortest_arc(0.0, PI / 2.0), PI / 2.0, 0.0001, "adjacent steps")
-	assert_almost_eq(CameraRig.shortest_arc(1.0, 1.0), 0.0, 0.0001, "no arc to the same angle")
-
-
-func test_shortest_arc_never_exceeds_half_a_turn() -> void:
-	for degrees in [0, 45, 90, 179, 181, 270, 359, 720]:
-		var arc: float = CameraRig.shortest_arc(0.0, deg_to_rad(float(degrees)))
-		assert_between(arc, -PI, PI, "arc to %d degrees stays within half a turn" % degrees)
+	assert_almost_eq(
+		CameraRig.yaw_after_mouse_drag(0.0, -180.0, 0.25),
+		TAU - PI / 4.0,
+		0.0001,
+		"dragging the other way wraps below zero"
+	)
 
 
 func test_ortho_size_is_clamped_to_the_convention_range() -> void:

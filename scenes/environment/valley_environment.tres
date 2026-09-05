@@ -1,5 +1,17 @@
 [gd_resource type="Environment" format=3]
 
+; The valley's environment. Tuned in the Banished-look pass, and three of these choices are load
+; bearing:
+;
+; - **ACES rather than AgX.** AgX desaturates as it rolls off, so with the light rig running hot
+;   every albedo in the valley — meadow, thatch, oak, limestone — converged on the same pale
+;   olive. ACES keeps hue into the highlights, which is what lets the palette be visible at all.
+; - **Low sky ambient, strong sun** (see data/sky.json). A northern landscape reads by contrast
+;   between a lit face and a shaded one; a high ambient fills the shadows and flattens it.
+; - **SSAO and SSIL stay on, tighter.** They do the work of grounding a building on the terrain
+;   and bouncing a little colour up under the eaves, which is most of what makes a low-poly model
+;   sit in a scene rather than on top of it. No SDFGI, no lightmaps (Architecture Guide §4).
+
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_scb8i"]
 sky_top_color = Color(0.24, 0.33, 0.48, 1)
 sky_horizon_color = Color(0.78, 0.72, 0.66, 1)
@@ -14,13 +26,19 @@ sky_material = SubResource("ProceduralSkyMaterial_scb8i")
 background_mode = 2
 sky = SubResource("Sky_ir3sh")
 ambient_light_source = 3
-tonemap_mode = 4
+tonemap_mode = 3
+tonemap_white = 1.6
 adjustment_enabled = true
-adjustment_contrast = 1.08
-adjustment_saturation = 0.92
+adjustment_contrast = 1.12
+adjustment_saturation = 1.06
 ssao_enabled = true
-ssao_radius = 1.5
+ssao_radius = 1.1
+ssao_intensity = 2.6
+ssao_power = 1.6
+ssao_detail = 0.6
 ssil_enabled = true
+ssil_radius = 3.5
+ssil_intensity = 0.8
 volumetric_fog_enabled = true
 volumetric_fog_density = 0.0028
 volumetric_fog_albedo = Color(0.76, 0.78, 0.82, 1)

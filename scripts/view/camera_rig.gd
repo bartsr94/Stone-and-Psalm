@@ -1,14 +1,14 @@
-## The orthographic camera the whole game is viewed through: fixed 40° pitch, yaw locked to four
-## 90° positions, zoom clamped to the ortho range (Architecture Guide §4).
+## The orthographic camera the whole game is viewed through: fixed 40° pitch, smooth 360° yaw
+## while middle-mouse dragging, and zoom clamped to the ortho range (Architecture Guide §4).
 ##
 ## A view node. It owns no simulation state, and its transform is transient by the Fundamental
 ## Rule. Every number it uses comes from `data/tuning.json`.
 ##
 ## Three choices worth knowing:
 ##
-## - **Yaw is stored as a step index, not an angle.** The visible angle eases toward the step's
-##   angle along the shortest arc, so repeated turns can never accumulate drift off the four
-##   cardinal positions.
+## - **Middle-mouse dragging owns yaw while held.** It interrupts a keyboard turn immediately;
+##   Q/E then begin a fresh 90° turn from the freely chosen angle rather than snapping back to
+##   one of four cardinal views.
 ## - **Pan speed is screens-per-second, not metres-per-second.** Panning therefore feels the same
 ##   zoomed in at 20 m as zoomed out at 160 m, where a fixed metre rate would crawl.
 ## - **The rig node is the focus point on the ground**; the single `Camera3D` child is placed
@@ -18,19 +18,19 @@
 class_name CameraRig
 extends Node3D
 
-var _yaw_step: int = 0
 var _yaw_radians: float = 0.0
 var _yaw_from: float = 0.0
 var _yaw_to: float = 0.0
 var _yaw_elapsed: float = 0.0
+var _mouse_rotating: bool = false
 
 var _ortho_target: float = 0.0
 var _ortho_current: float = 0.0
 
 var _pitch_radians: float = 0.0
 var _yaw_step_degrees: float = 0.0
-var _yaw_step_count: int = 0
 var _yaw_turn_seconds: float = 0.0
+var _mouse_yaw_degrees_per_pixel: float = 0.0
 var _ortho_min: float = 0.0
 var _ortho_max: float = 0.0
 var _zoom_step_factor: float = 0.0
@@ -44,8 +44,8 @@ var _camera_distance: float = 0.0
 func _ready() -> void:
 	_pitch_radians = deg_to_rad(Tuning.get_num("camera.pitch_deg"))
 	_yaw_step_degrees = Tuning.get_num("camera.yaw_step_deg")
-	_yaw_step_count = Tuning.get_int("camera.yaw_step_count")
 	_yaw_turn_seconds = Tuning.get_num("camera.yaw_turn_seconds")
+	_mouse_yaw_degrees_per_pixel = Tuning.get_num("camera.mouse_yaw_degrees_per_pixel")
 	_ortho_min = Tuning.get_num("camera.ortho_size_min_m")
 	_ortho_max = Tuning.get_num("camera.ortho_size_max_m")
 	_zoom_step_factor = Tuning.get_num("camera.zoom_step_factor")
@@ -56,7 +56,7 @@ func _ready() -> void:
 	_ortho_target = clamp_ortho(Tuning.get_num("camera.ortho_size_start_m"), _ortho_min, _ortho_max)
 	_ortho_current = _ortho_target
 
-	_yaw_radians = yaw_for_step(_yaw_step, _yaw_step_degrees)
+	_yaw_radians = 0.0
 	_yaw_from = _yaw_radians
 	_yaw_to = _yaw_radians
 
@@ -79,7 +79,18 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("cam_yaw_left"):
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+		_mouse_rotating = event.pressed
+		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and _mouse_rotating:
+		# A release over UI may be consumed before it reaches `_unhandled_input`. The mask on the
+		# next motion prevents that missed release from leaving rotation stuck on.
+		if event.button_mask & MOUSE_BUTTON_MASK_MIDDLE:
+			_drag_yaw(event.relative.x)
+			get_viewport().set_input_as_handled()
+		else:
+			_mouse_rotating = false
+	elif event.is_action_pressed("cam_yaw_left"):
 		_turn(-1)
 	elif event.is_action_pressed("cam_yaw_right"):
 		_turn(1)
@@ -100,9 +111,18 @@ func _pan(delta: float) -> void:
 
 
 func _turn(direction: int) -> void:
-	_yaw_step = wrapped_step(_yaw_step + direction, _yaw_step_count)
 	_yaw_from = _yaw_radians
-	_yaw_to = _yaw_radians + shortest_arc(_yaw_radians, yaw_for_step(_yaw_step, _yaw_step_degrees))
+	_yaw_to = _yaw_radians + deg_to_rad(_yaw_step_degrees) * float(direction)
+	_yaw_elapsed = 0.0
+
+
+func _drag_yaw(horizontal_pixels: float) -> void:
+	_yaw_radians = yaw_after_mouse_drag(
+		_yaw_radians, horizontal_pixels, _mouse_yaw_degrees_per_pixel
+	)
+	# Cancel any in-flight Q/E easing so it cannot pull the camera away after the drag.
+	_yaw_from = _yaw_radians
+	_yaw_to = _yaw_radians
 	_yaw_elapsed = 0.0
 
 
@@ -132,19 +152,12 @@ func _apply() -> void:
 	_camera.transform = Transform3D(orientation, orientation * Vector3(0.0, 0.0, _camera_distance))
 
 
-## The angle of a yaw step, in radians.
-static func yaw_for_step(step: int, step_degrees: float) -> float:
-	return deg_to_rad(float(step) * step_degrees)
-
-
-## Wraps a step index into `0..count - 1`, so turning past either end comes round again.
-static func wrapped_step(step: int, count: int) -> int:
-	return posmod(step, count)
-
-
-## The signed shortest way round from one angle to another, in radians (−PI..PI).
-static func shortest_arc(from_radians: float, to_radians: float) -> float:
-	return fposmod(to_radians - from_radians + PI, TAU) - PI
+## Continuous yaw after a horizontal middle-mouse drag. The result is wrapped so any number of
+## full rotations remains numerically stable.
+static func yaw_after_mouse_drag(
+	current_radians: float, horizontal_pixels: float, degrees_per_pixel: float
+) -> float:
+	return fposmod(current_radians + deg_to_rad(horizontal_pixels * degrees_per_pixel), TAU)
 
 
 static func clamp_ortho(size: float, min_size: float, max_size: float) -> float:

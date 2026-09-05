@@ -23,8 +23,13 @@ void vertex() {
 void fragment() {
 	vec3 base = COLOR.rgb;
 
-	// Leaves read green: the green channel sits above red and blue. Trunks and rock do not.
-	float leafiness = clamp((base.g - base.r) * 4.0 + (base.g - base.b) * 2.0, 0.0, 1.0);
+	// Leaves read green: the green channel takes more than its third of the total. Trunks, rock
+	// and bracken do not. This is deliberately a *ratio* rather than a difference of channels —
+	// a difference depends on how bright the colour is, so it changed meaning the moment vertex
+	// colours moved to linear (tools/blender/meshkit.py) and quietly stopped recolouring the
+	// canopy. A ratio is the same number in either space.
+	float total = base.r + base.g + base.b + 1e-4;
+	float leafiness = clamp((base.g / total - 0.34) * 9.0, 0.0, 1.0);
 	vec3 recolored = mix(base, foliage_tint, leafiness * foliage_recolor);
 
 	// Snow settles on upward faces, most on the flattest.

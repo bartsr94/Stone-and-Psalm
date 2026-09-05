@@ -12,7 +12,7 @@ func test_reads_a_number() -> void:
 
 
 func test_reads_a_whole_number() -> void:
-	assert_eq(Tuning.get_int("camera.yaw_step_count"), 4)
+	assert_eq(Tuning.get_int("world.terrain_chunk_cells"), 32)
 
 
 func test_missing_path_is_loud() -> void:
@@ -40,8 +40,13 @@ func test_world_conventions() -> void:
 func test_camera_conventions() -> void:
 	assert_almost_eq(Tuning.get_num("camera.pitch_deg"), 40.0, 0.0001, "40 degree pitch, fixed")
 	assert_almost_eq(Tuning.get_num("camera.yaw_step_deg"), 90.0, 0.0001, "90 degree yaw steps")
-	assert_eq(Tuning.get_int("camera.yaw_step_count"), 4, "four yaw positions")
 	assert_almost_eq(Tuning.get_num("camera.yaw_turn_seconds"), 0.25, 0.0001, "turn over 0.25 s")
+	assert_almost_eq(
+		Tuning.get_num("camera.mouse_yaw_degrees_per_pixel"),
+		0.25,
+		0.0001,
+		"middle-mouse yaw sensitivity"
+	)
 	assert_almost_eq(Tuning.get_num("camera.ortho_size_min_m"), 20.0, 0.0001, "20 m closest")
 	assert_almost_eq(Tuning.get_num("camera.ortho_size_max_m"), 160.0, 0.0001, "160 m widest")
 

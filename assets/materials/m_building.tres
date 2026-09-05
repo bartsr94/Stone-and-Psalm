@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/materials/building.gdshader" id="1_bld"]
+
+[resource]
+shader = ExtResource("1_bld")
+shader_parameter/build_height_m = 1000.0
+shader_parameter/snow_amount = 0.0
+shader_parameter/snow_color = Color(0.87, 0.89, 0.92, 1)
+shader_parameter/base_roughness = 0.88
