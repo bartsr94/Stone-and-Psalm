@@ -1,20 +1,45 @@
-## The greybox precinct: a timber church and a dormitory range for the one monk to walk
-## between. Presentation only — it reads the resolved building cells from `Population` and
-## `data/precinct.json` and owns nothing. Phase 8 replaces the church with the real staged
-## build; until then these are boxes.
+## The precinct: a timber church and a dormitory range for the one monk to walk between.
+## Presentation only — it reads the resolved building cells from `Population` and
+## `data/precinct.json` and owns nothing. Phase 8 replaces the church with the real staged build.
 ##
-## Boxes carry no vertex colour, so unlike the terrain and the .glb props these use a small set
-## of `StandardMaterial3D`s tinted from `data/palette.json` — still one palette, still one look.
+## These two are the largest things in the valley until the stone church rises, so they are drawn
+## from authored `bld_precinct_*.glb` models on the same terms as every player-placed building
+## (`BuildingModels`), sharing the same vertex-colour material. The original boxes remain as the
+## fallback for a precinct entry with no model, which is what keeps `data/precinct.json` editable
+## without waiting on art.
 extends Node3D
 
+const MODEL_PREFIX := "precinct_"
+const MATERIAL_PATH := "res://assets/materials/m_building.tres"
+
 var _materials: Dictionary = {}
+var _model_material: ShaderMaterial = null
+var _seasons := SeasonBlender.new()
 
 
 func _ready() -> void:
+	_model_material = load(MATERIAL_PATH)
+	if _model_material != null:
+		_model_material = _model_material.duplicate()
+	SimClock.day_passed.connect(_on_day_passed)
+	_apply_season()
+
 	var config := Population.precinct_config()
 	for building in config.get("buildings", []):
 		_build_building(building as Dictionary)
 	_mark_work_site()
+
+
+func _on_day_passed(_day_of_year: int) -> void:
+	_apply_season()
+
+
+## The precinct shares the buildings' snow blend, so a roof here whitens with every other roof.
+func _apply_season() -> void:
+	var state := _seasons.sample(SimClock.day_of_year())
+	if state.is_empty() or _model_material == null:
+		return
+	_model_material.set_shader_parameter("snow_amount", state["snow_coverage"])
 
 
 func _build_building(building: Dictionary) -> void:
@@ -26,6 +51,15 @@ func _build_building(building: Dictionary) -> void:
 	root.name = str(building["id"]).capitalize()
 	root.position = ground
 	add_child(root)
+
+	var mesh := BuildingModels.mesh_for(MODEL_PREFIX + str(building["id"]))
+	if mesh != null:
+		var instance := MeshInstance3D.new()
+		instance.name = "Model"
+		instance.mesh = mesh
+		instance.material_override = _model_material
+		root.add_child(instance)
+		return
 
 	var walls := _box(size, _material(str(building.get("colour", "oak_weathered"))))
 	walls.name = "Walls"

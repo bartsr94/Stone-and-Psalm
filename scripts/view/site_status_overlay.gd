@@ -92,10 +92,12 @@ func _build_site_badge(root: Control) -> void:
 func _build_controls(root: Control) -> void:
 	var panel := _panel()
 	panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	panel.position = Vector2(-238.0, -58.0)
-	panel.size = Vector2(476.0, 38.0)
+	panel.position = Vector2(-315.0, -58.0)
+	panel.size = Vector2(630.0, 38.0)
 	root.add_child(panel)
-	var label := _label("WASD / arrows  pan     Q / E  rotate     wheel  zoom", 13, TEXT_MUTED)
+	var label := _label(
+		"WASD / arrows  pan     middle-drag / Q / E  rotate     wheel  zoom", 13, TEXT_MUTED
+	)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	panel.add_child(label)

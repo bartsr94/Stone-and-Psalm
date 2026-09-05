@@ -178,7 +178,7 @@ docs/            ← GDD, SIMULATION_SPEC, ARCHITECTURE_GUIDE, planning/, refere
 |---|---|
 | World unit | 1 unit = 1 metre |
 | Terrain cell | 2 m × 2 m |
-| Camera | **Orthographic**, 40° pitch fixed, 90° yaw steps |
+| Camera | **Orthographic**, 40° pitch fixed, continuous yaw + 90° key steps |
 | Materials | **One shared vertex-colour material** + one small palette texture |
 | Models | glTF `.glb`, +Y up, −Z forward, transforms applied, colour attribute `Col` |
 | Agents | ~600 tris, 3 bones, walk bob in the vertex shader |

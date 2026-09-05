@@ -7,149 +7,18 @@ Run from the repository root with:
     blender --background --python tools/blender/create_vegetation_props.py
 
 The generated .blend files are then exported by export_gltf.py.
+
+Mesh building, the palette and the save conventions all live in `meshkit.py` — including
+the sRGB-to-linear conversion every vertex colour needs, which is documented there.
 """
 
 import math
 import os
 import sys
 
-import bpy
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-BLEND_DIR = os.path.join(ROOT, "assets", "blend")
-
-PALETTE = {
-    "oak_fresh": (0.541, 0.420, 0.267, 1.0),
-    "oak_weathered": (0.369, 0.298, 0.224, 1.0),
-    "oak_dark": (0.243, 0.196, 0.153, 1.0),
-    "foliage_dark": (0.243, 0.322, 0.196, 1.0),
-    "foliage_light": (0.361, 0.455, 0.251, 1.0),
-    "bracken": (0.541, 0.384, 0.212, 1.0),
-    "gritstone": (0.486, 0.463, 0.424, 1.0),
-    "stone_weathered": (0.557, 0.545, 0.494, 1.0),
-    "mud": (0.361, 0.310, 0.251, 1.0),
-}
-
-
-class MeshBuilder:
-    def __init__(self):
-        self.vertices = []
-        self.faces = []
-        self.colours = []
-
-    def vertex(self, position, colour):
-        self.vertices.append(position)
-        self.colours.append(PALETTE[colour] if isinstance(colour, str) else colour)
-        return len(self.vertices) - 1
-
-    def face(self, positions, colour):
-        self.faces.append(tuple(self.vertex(p, colour) for p in positions))
-
-    def triangle(self, a, b, c, colour):
-        self.face((a, b, c), colour)
-
-    def quad(self, a, b, c, d, colour):
-        self.face((a, b, c, d), colour)
-
-    def cylinder(self, centre, radius, height, sides, side_colour, top_colour=None, direction="z"):
-        """Add a capped low-poly cylinder, with its base on centre along direction."""
-        top_colour = top_colour or side_colour
-        cx, cy, cz = centre
-        bottom = []
-        top = []
-        for i in range(sides):
-            angle = math.tau * i / sides
-            c = math.cos(angle) * radius
-            s = math.sin(angle) * radius
-            if direction == "x":
-                bottom.append((cx, cy + c, cz + s))
-                top.append((cx + height, cy + c, cz + s))
-            elif direction == "y":
-                bottom.append((cx + c, cy, cz + s))
-                top.append((cx + c, cy + height, cz + s))
-            else:
-                bottom.append((cx + c, cy + s, cz))
-                top.append((cx + c, cy + s, cz + height))
-        for i in range(sides):
-            nxt = (i + 1) % sides
-            self.quad(bottom[i], bottom[nxt], top[nxt], top[i], side_colour)
-        if direction == "x":
-            self.face(tuple(reversed(bottom)), side_colour)
-            self.face(top, top_colour)
-        elif direction == "y":
-            self.face(tuple(reversed(bottom)), side_colour)
-            self.face(top, top_colour)
-        else:
-            self.face(tuple(reversed(bottom)), side_colour)
-            self.face(top, top_colour)
-
-    def to_object(self, name):
-        mesh = bpy.data.meshes.new(name + "_mesh")
-        mesh.from_pydata(self.vertices, [], self.faces)
-        mesh.update()
-        obj = bpy.data.objects.new(name, mesh)
-        bpy.context.collection.objects.link(obj)
-
-        colours = mesh.color_attributes.new(name="Col", type="BYTE_COLOR", domain="CORNER")
-        mesh.color_attributes.active_color = colours
-        for polygon in mesh.polygons:
-            for loop_index in polygon.loop_indices:
-                colours.data[loop_index].color = self.colours[mesh.loops[loop_index].vertex_index]
-
-        obj.data.materials.append(shared_material())
-        return obj
-
-
-def shared_material():
-    material = bpy.data.materials.get("M_StoneAndPsalm")
-    if material is None:
-        material = bpy.data.materials.new("M_StoneAndPsalm")
-    material.use_nodes = True
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-    nodes.clear()
-    output = nodes.new("ShaderNodeOutputMaterial")
-    shader = nodes.new("ShaderNodeBsdfPrincipled")
-    shader.inputs["Metallic"].default_value = 0.0
-    shader.inputs["Roughness"].default_value = 0.85
-    colour = nodes.new("ShaderNodeVertexColor")
-    colour.layer_name = "Col"
-    links.new(colour.outputs["Color"], shader.inputs["Base Color"])
-    links.new(shader.outputs["BSDF"], output.inputs["Surface"])
-    return material
-
-
-def reset_scene():
-    bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.object.delete(use_global=False)
-    for datablocks in (bpy.data.meshes, bpy.data.curves, bpy.data.cameras, bpy.data.lights):
-        for block in list(datablocks):
-            if block.users == 0:
-                datablocks.remove(block)
-
-
-def finish(name, builder):
-    # Normalize the authored footprint after all silhouette details are present. This makes the
-    # origin contract explicit even for deliberately asymmetric clumps and faceted cylinders.
-    min_x = min(vertex[0] for vertex in builder.vertices)
-    max_x = max(vertex[0] for vertex in builder.vertices)
-    min_y = min(vertex[1] for vertex in builder.vertices)
-    max_y = max(vertex[1] for vertex in builder.vertices)
-    min_z = min(vertex[2] for vertex in builder.vertices)
-    shift_x = (min_x + max_x) * 0.5
-    shift_y = (min_y + max_y) * 0.5
-    builder.vertices = [
-        (x - shift_x, y - shift_y, z - min_z)
-        for x, y, z in builder.vertices
-    ]
-    obj = builder.to_object(name)
-    # Geometry is authored directly in final coordinates, so the object transform is already
-    # applied and the validator can enforce the origin/scale contract without exceptions.
-    bpy.context.view_layer.objects.active = obj
-    obj.select_set(True)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(BLEND_DIR, name + ".blend"))
-    bpy.ops.object.select_all(action="DESELECT")
+from meshkit import MeshBuilder, build_all, finish  # noqa: E402
 
 
 def make_stump():
@@ -223,12 +92,7 @@ def make_reeds():
 
 
 def main():
-    os.makedirs(BLEND_DIR, exist_ok=True)
-    shared_material()
-    for maker in (make_stump, make_fallen_log, make_fern_clump, make_reeds):
-        reset_scene()
-        maker()
-    print("[props] created stump, fallen log, fern clump, and river reeds")
+    build_all((make_stump, make_fallen_log, make_fern_clump, make_reeds), "props")
 
 
 if __name__ == "__main__":

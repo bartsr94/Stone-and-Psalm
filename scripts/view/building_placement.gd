@@ -146,12 +146,23 @@ func _refresh_ghost() -> void:
 
 	var footprint := Vector2i.ONE if type_id == ROAD_TYPE_ID else Buildings.footprint_for(type_id, _rotation_deg)
 	var size_m := Vector2(footprint) * Terrain.cell_size_m()
-	var height := 0.1 if type_id == ROAD_TYPE_ID else _GHOST_HEIGHT_M
-	(_ghost.mesh as BoxMesh).size = Vector3(size_m.x, height, size_m.y)
-
 	var centre := Vector2(_hover_cell) + Vector2(footprint) * 0.5
 	var ground := Terrain.cell_to_world(int(floor(centre.x)), int(floor(centre.y)))
-	_ghost.position = ground + Vector3(0.0, height * 0.5, 0.0)
+
+	# Ghost the building's own model where one exists, so what is previewed is what gets built —
+	# a box preview of a barn tells the player its footprint but nothing about how it will sit.
+	var model: Mesh = null if type_id == ROAD_TYPE_ID else BuildingModels.mesh_for(type_id)
+	if model != null:
+		_ghost.mesh = model
+		_ghost.rotation.y = deg_to_rad(float(_rotation_deg))
+		_ghost.position = ground
+	else:
+		var height := 0.1 if type_id == ROAD_TYPE_ID else _GHOST_HEIGHT_M
+		if not (_ghost.mesh is BoxMesh):
+			_ghost.mesh = BoxMesh.new()
+		(_ghost.mesh as BoxMesh).size = Vector3(size_m.x, height, size_m.y)
+		_ghost.rotation.y = 0.0
+		_ghost.position = ground + Vector3(0.0, height * 0.5, 0.0)
 
 	var valid := (
 		Terrain.is_walkable(_hover_cell.x, _hover_cell.y) if type_id == ROAD_TYPE_ID

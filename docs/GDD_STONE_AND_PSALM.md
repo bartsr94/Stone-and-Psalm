@@ -213,10 +213,11 @@ purpose is learning to make things look right.
 
 ## 11. Camera and Presentation
 
-- **Orthographic `Camera3D`**, fixed ~40° pitch, rotating in 90° steps, with a zoom range from
+- **Orthographic `Camera3D`**, fixed ~40° pitch, freely rotating around the vertical axis by
+  middle-mouse drag (with Q/E 90° steps), and a zoom range from
   precinct overview down to reading a monk's habit colour.
-- Never a free-look camera. A fixed rig means every asset only has to look good from four angles
-  — a large, deliberate reduction in art risk.
+- Never a free-pitch camera. The fixed tilt keeps silhouettes and ground readability predictable
+  while allowing players the familiar continuous orbit used by city builders.
 - Agents are individually visible and individually identifiable at mid zoom: **tonsured monks in
   the order's habit colour, bearded conversi in undyed russet**, and lay famuli in ordinary
   clothes. The visual distinction is historical and it is also the UI.

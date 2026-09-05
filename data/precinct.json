@@ -1,5 +1,5 @@
 {
-  "_comment": "Phase 3 greybox precinct: a church and a dormitory for the one monk to walk between, and a work site out in the meadow. Anchors are cell coordinates near the founding site; the renderer and Population search nearby for a flat, dry cell, so these stay robust if the valley preset is retuned. 'door' is the offset from the found footprint cell to the cell an agent stands on to enter. Sizes are in metres.",
+  "_comment": "Phase 3 precinct. The church tower was raised from 7.5 m to 12.5 m in the Banished-look pass: at 7.5 m its spire barely cleared the nave roof, so the one building meant to be the landmark of the valley read as an ordinary hall. Sizes here are presentation only - Population resolves the anchors and the door cells, and nothing in the simulation depends on a height. Original note follows. Phase 3 greybox precinct: a church and a dormitory for the one monk to walk between, and a work site out in the meadow. Anchors are cell coordinates near the founding site; the renderer and Population search nearby for a flat, dry cell, so these stay robust if the valley preset is retuned. 'door' is the offset from the found footprint cell to the cell an agent stands on to enter. Sizes are in metres.",
 
   "buildings": [
     {
@@ -8,7 +8,7 @@
       "anchor": [96, 84],
       "search_radius_cells": 16,
       "size_m": [7.5, 5.0, 15.0],
-      "tower_m": [3.0, 7.5, 3.0],
+      "tower_m": [3.6, 12.5, 3.6],
       "door_offset_cells": [0, 3],
       "colour": "oak_weathered",
       "roof_colour": "shingle"
