@@ -33,6 +33,7 @@
   "bracken":           { "hex": "#8A6236", "note": "Autumn bracken on the slopes" },
   "foliage_dark":      { "hex": "#3E5232", "note": "Woodland canopy" },
   "foliage_light":     { "hex": "#5C7440", "note": "Canopy highlight" },
+  "woodland_floor":    { "hex": "#5A5E3E", "note": "Leaf litter and moss under the trees; the ground of a wood, not its canopy" },
   "soil":              { "hex": "#4E4034", "note": "Ploughed field, building site" },
   "mud":               { "hex": "#5C4F40", "note": "Trackways, yard" },
   "crop_green":        { "hex": "#7E9145", "note": "Standing corn, still green" },

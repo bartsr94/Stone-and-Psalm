@@ -1,7 +1,7 @@
 # Stone and Psalm — Status
 
-**Last updated:** 2026-09-04
-**Test count:** 314 passing (GUT 9.6.0, headless)
+**Last updated:** 2026-09-07
+**Test count:** 317 passing (GUT 9.6.0, headless)
 **Doc version:** v1.0
 
 ---
@@ -186,10 +186,44 @@ heightmap and 1.4's first river-surface implementation is complete.
 
 ---
 
+## Look pass — In The Nature (2026-09-07)
+
+**Uncommitted on `feat/in-the-nature-look`.** Bart set a visual target — the BlenderKit scene
+*In The Nature* (Toby Noby), a photoreal Cycles still kept locally as
+`assets/reference/forest_scene.blend` (gitignored, 510 MB) — and asked for the valley and the
+buildings to move toward it. The reference cannot be reproduced inside the vertex-colour
+conventions, so the pass chased its *qualities*: golden-hour light against cool shade, aerial
+haze on the far slope, ground cover at the camera's scale, tree silhouettes and a second and
+third species, a beck that mirrors the sky, and roofs that read as thatch from above. Full
+write-up, including what went wrong first and why Terrain3D was not used, in
+`docs/implementations/in_the_nature_look_pass.md`.
+
+| Piece | Where |
+|---|---|
+| Light rig retuned; ambient from the sky dome, not the horizon; glow, SSR, depth-fog aerial perspective | `data/sky.json`, `scripts/view/sky_cycle.gd`, `scenes/environment/valley_environment.tres` |
+| Ground cover: grass clumps and moor tufts, tens of thousands per batch, wind, per-instance colour, no shadows, none under buildings | `tools/blender/create_ground_cover_props.py`, `assets/materials/grass.gdshader`, `scripts/view/vegetation_renderer.gd`, `data/vegetation.json` |
+| Trees rebuilt for silhouette (oak, Scots pine, new birch); denser stand; canopy keeps its authored shading | `tools/blender/create_tree_props.py`, `meshkit.blob` |
+| Woodland floor is leaf litter, not canopy green (new palette key `woodland_floor`) | `scripts/view/terrain_renderer.gd`, `data/palette.json` |
+| Water: sky-tinted, rippled normals, SSR; the plane runs three cells under the banks so the shoreline is a contour, not a staircase | `assets/materials/river_water.gdshader`, `scripts/view/terrain_renderer.gd` |
+| Backdrop fells beyond the map edge, on a squircle, meeting the terrain's own edge height | `scripts/view/backdrop_renderer.gd`, `data/backdrop.json`, `scenes/world/main.tscn` |
+| Buildings: thatch as aged segments with moss, eaves shadow down every wall, per-face weathering; `bld_` budget 1500 → 2400 | `tools/blender/create_building_models.py`, `meshkit.py` (`face_shaded`, `shade_band`, `weather`), `validate_assets.py` |
+| `tools/screenshot.gd` takes `ortho_size_m` and `pitch_deg` | `tools/screenshot.gd` |
+| Tests: ground cover and backdrop assertions | `test/integration/test_main_scene.gd` |
+
+Screenshots: `docs/screenshots/look_pass_golden_hour.png`, `look_pass_wide.png`,
+`look_pass_fells.png`, and the rebuilt `asset_sheet.png`.
+
+---
+
 ## Start here next session
 
+**The look pass above is done but not committed** — review the screenshots, then commit the
+branch (or ask for `/wrap-up`). Open follow-ups are listed at the end of
+`docs/implementations/in_the_nature_look_pass.md`; the one that matters for play is that grass is
+not hidden under buildings restored from a save.
+
 **Phase 5.1 + the timber half of 5.2 are built and tested on `phase-5-sawing-chain`, built on the
-merged `phase-5-production`.** 314 tests pass. The new pieces:
+merged `phase-5-production`.** 317 tests pass. The new pieces:
 
 | # | Piece | Where |
 |---|---|---|
@@ -438,6 +472,20 @@ require. Must run **windowed, not headless** — the dummy renderer produces no 
 ---
 
 ## Decision Log
+
+### 2026-09-07 — The In-The-Nature look pass: chase the qualities, not the geometry
+
+Bart's visual target is a photoreal Cycles scene (10.5 M triangles, sixty 4K maps). The
+decision was to keep every convention — one vertex-colour material, no textures — and reach
+for what the image *does*: warm light against cool shade, aerial haze, ground cover, tree
+silhouettes, reflective water, textured roofs. Two things learned the hard way: the ambient has
+to be coloured from the sky dome (a horizon-tinted ambient turns golden hour into brown), and
+distance haze has to be blue and start past the near ground or it becomes an orange filter.
+The `bld_` triangle budget went from 1500 to 2400 because, with no textures, courses and
+studwork are the surface. Terrain3D (installed, 1.0.2) was assessed and deferred: it is a
+renderer rewrite plus a texture exception, and the ground was no longer the weakest thing on
+screen once grass and the backdrop were in. Details in
+`docs/implementations/in_the_nature_look_pass.md`.
 
 ### 2026-09-04 — Project founded
 

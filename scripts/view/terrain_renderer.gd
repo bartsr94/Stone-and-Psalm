@@ -20,17 +20,21 @@ extends Node3D
 const MATERIAL_PATH := "res://assets/materials/m_terrain_ground.tres"
 const RIVER_MATERIAL_PATH := "res://assets/materials/m_river_water.tres"
 
-## Ground colour per terrain type. Woodland uses a canopy green for the ground beneath it: seen
-## from this camera angle the slope reads as wooded even before a single tree is placed.
+## Ground colour per terrain type. Woodland gets a leaf-litter floor: it used to borrow the
+## canopy's dark green, which under a low sun and the ambient occlusion pass rendered as a black
+## band along the valley side — the single ugliest thing in every wide shot. The trees say
+## "wood" now; the ground under them only has to say "shade".
 const GROUND_COLOURS := {
 	TerrainTypes.Terrain.MEADOW: "grass_summer",
-	TerrainTypes.Terrain.WOODLAND: "foliage_dark",
+	TerrainTypes.Terrain.WOODLAND: "woodland_floor",
 	TerrainTypes.Terrain.MOOR: "moor_heather",
 	TerrainTypes.Terrain.ROCK: "gritstone",
 	TerrainTypes.Terrain.ARABLE: "soil",
 	TerrainTypes.Terrain.BUILT: "mud",
 }
 const RIVER_BED_COLOUR := "mud"
+## How far past the river cells the water plane reaches, in cells — see `_build_river_surface`.
+const BANK_APRON_CELLS := 3
 
 var _material: Material = null
 var _river_material: Material = null
@@ -86,45 +90,70 @@ func _remesh_dirty() -> void:
 ## Builds the visible water surface from the authoritative river cells. Water is deliberately a
 ## separate derived mesh: it has no say in terrain data and can be replaced by a more detailed
 ## stream representation later without changing saves or pathfinding.
+##
+## **The plane extends under the banks.** Drawing water only on the river cells gave the beck a
+## staircase shoreline — every bank a run of 2 m steps, the ugliest line in every wide shot.
+## The surface now covers every cell within `BANK_APRON_CELLS` of a river cell, at the channel's
+## water level; the bank rises through it, so the waterline is wherever the ground crosses the
+## level — a smooth contour that follows the bed's own blend into the bank.
 func _build_river_surface() -> void:
 	var cells_across: int = Terrain.cells_across()
 	var cell_size: float = Terrain.cell_size_m()
 	var half_extent: float = Terrain.world_size_m() * 0.5
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
+	var tangents := PackedFloat32Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
+	# Dilate the river cells by the apron, keyed by cell index so each cell is drawn once.
+	var covered: Dictionary = {}
 	for y in cells_across:
 		for x in cells_across:
 			if Terrain.water_at(x, y) != TerrainTypes.Water.RIVER:
 				continue
+			for dy in range(-BANK_APRON_CELLS, BANK_APRON_CELLS + 1):
+				for dx in range(-BANK_APRON_CELLS, BANK_APRON_CELLS + 1):
+					var cx := x + dx
+					var cy := y + dy
+					if Terrain.is_inside(cx, cy):
+						covered[cy * cells_across + cx] = true
 
-			var first: int = vertices.size()
-			var water_y: float = Terrain.water_level_at(x, y)
-			var left: float = float(x) * cell_size - half_extent
-			var right: float = float(x + 1) * cell_size - half_extent
-			var near: float = float(y) * cell_size - half_extent
-			var far: float = float(y + 1) * cell_size - half_extent
-			vertices.append_array([
-				Vector3(left, water_y, near),
-				Vector3(right, water_y, near),
-				Vector3(left, water_y, far),
-				Vector3(right, water_y, far),
-			])
-			normals.append_array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
-			var uv := Vector2(float(x) / float(cells_across), float(y) / float(cells_across))
-			var uv_step := Vector2(1.0 / cells_across, 1.0 / cells_across)
-			uvs.append_array([uv, uv + Vector2(uv_step.x, 0.0), uv + Vector2(0.0, uv_step.y), uv + uv_step])
-			indices.append_array([
-				first, first + 2, first + 1,
-				first + 1, first + 2, first + 3,
-			])
+	var keys := covered.keys()
+	keys.sort()
+	for key in keys:
+		var x: int = int(key) % cells_across
+		var y: int = int(key) / cells_across
+		var first: int = vertices.size()
+		var water_y: float = Terrain.water_level_at(x, y)
+		var left: float = float(x) * cell_size - half_extent
+		var right: float = float(x + 1) * cell_size - half_extent
+		var near: float = float(y) * cell_size - half_extent
+		var far: float = float(y + 1) * cell_size - half_extent
+		vertices.append_array([
+			Vector3(left, water_y, near),
+			Vector3(right, water_y, near),
+			Vector3(left, water_y, far),
+			Vector3(right, water_y, far),
+		])
+		normals.append_array([Vector3.UP, Vector3.UP, Vector3.UP, Vector3.UP])
+		# A flat plane's tangent runs along +X; the water shader tilts its normal with the
+		# ripples along TANGENT and BINORMAL, which are garbage without this array.
+		for _i in 4:
+			tangents.append_array([1.0, 0.0, 0.0, 1.0])
+		var uv := Vector2(float(x) / float(cells_across), float(y) / float(cells_across))
+		var uv_step := Vector2(1.0 / cells_across, 1.0 / cells_across)
+		uvs.append_array([uv, uv + Vector2(uv_step.x, 0.0), uv + Vector2(0.0, uv_step.y), uv + uv_step])
+		indices.append_array([
+			first, first + 2, first + 1,
+			first + 1, first + 2, first + 3,
+		])
 
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_INDEX] = indices
 

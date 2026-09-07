@@ -1,0 +1,21 @@
+{
+  "_comment": "The fells beyond the map edge (scripts/view/backdrop_renderer.gd, In-The-Nature look pass 2026-09-07). Presentation only: a ring of low-poly hills outside the playable terrain so the dale has a horizon instead of ending in nothing. The inner edge meets the terrain's own edge height and blends into noise-shaped fells over blend_m; the rise climbs from rise_min_m to rise_max_m by outer_radius_m. Heights in metres. Colours are palette keys, by height: low on the near slopes, high on the tops, rock above rock_from_m. The noise is FastNoiseLite with a fixed seed, so a rebuild is identical.",
+  "seed": 20260907,
+  "outer_radius_m": 900.0,
+  "rings": 16,
+  "segments": 128,
+  "blend_m": 150.0,
+  "rise_min_m": 24.0,
+  "rise_max_m": 210.0,
+  "noise_frequency": 0.0038,
+  "noise_amplitude_m": 48.0,
+  "detail_frequency": 0.016,
+  "detail_amplitude_m": 7.0,
+  "colours": {
+    "low": "grass_summer",
+    "high": "moor_heather",
+    "rock": "gritstone",
+    "high_from_m": 42.0,
+    "rock_from_m": 150.0
+  }
+}

@@ -4,17 +4,43 @@
   "models": {
     "tree_broadleaf": "res://assets/models/prop_tree_broadleaf.glb",
     "tree_pine": "res://assets/models/prop_tree_pine.glb",
+    "tree_birch": "res://assets/models/prop_tree_birch.glb",
     "scrub": "res://assets/models/prop_gorse.glb",
     "rock": "res://assets/models/prop_rock_boulder.glb",
     "stump": "res://assets/models/prop_stump.glb",
     "fallen_log": "res://assets/models/prop_fallen_log.glb",
     "fern": "res://assets/models/prop_fern_clump.glb",
-    "reeds": "res://assets/models/prop_river_reeds.glb"
+    "reeds": "res://assets/models/prop_river_reeds.glb",
+    "grass_clump": "res://assets/models/prop_grass_clump.glb",
+    "moor_tuft": "res://assets/models/prop_moor_tuft.glb"
   },
 
   "founding_valley": {
     "seed": 20260904,
-    "tree_sample_stride_cells": 3,
+
+    "ground_cover": {
+      "_comment": "Grass clumps and moor tufts, instanced per cell with no sampling stride: this is the layer that makes the meadow read as ground cover rather than a green plane (In-The-Nature look pass, 2026-09-07). clumps_per_cell is by terrain type; a fraction is a probability for the last clump. Instance colour drifts each clump between shade (colour_shade) and straw (colour_straw) by colour_variation, so ten thousand copies of one mesh do not read as one mesh. Anything steeper than max_slope_degrees is bare. Roads, water and built cells get none.",
+      "clumps_per_cell": {
+        "MEADOW": 5.5,
+        "WOODLAND": 1.6,
+        "MOOR": 3.0,
+        "ARABLE": 0.8,
+        "ROCK": 0.3,
+        "BUILT": 0.0
+      },
+      "moor_tuft_terrains": ["MOOR", "ROCK"],
+      "max_slope_degrees": 38.0,
+      "scale_min": 0.85,
+      "scale_max": 1.35,
+      "jitter_fraction": 0.96,
+      "sink_m": 0.05,
+      "colour_variation": 0.55,
+      "colour_shade": "#8fa07a",
+      "colour_straw": "#d8c68a"
+    },
+    "tree_sample_stride_cells": 2,
+    "birch_fraction": 0.32,
+    "canopy_recolour": 0.62,
     "scrub_sample_stride_cells": 2,
     "rock_sample_stride_cells": 3,
     "understory_sample_stride_cells": 4,

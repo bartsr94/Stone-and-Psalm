@@ -1,60 +1,68 @@
 {
-  "_comment": "Phase 2.3 diurnal light rig. Energies were re-balanced in the Banished-look pass: the sun and especially the ambient were running hot enough that the tonemapper crushed every albedo toward white, which is what made the whole valley read as one flat olive regardless of what colour anything actually was. A low ambient with a strong sun is what gives a northern landscape its contrast. Keyframes are indexed by the sun's altitude above the horizon in degrees (scripts/sim/daylight.gd computes it for any minute of any day) and lerped by scripts/view/sky_cycle.gd. Below the lowest key the values hold flat (night); above the highest they hold flat (high noon). sun_energy is the directional light energy before the seasonal scale. fog_density_scale multiplies the seasonal fog density — mist thickens at dawn and dusk. Colours are sRGB hex.",
-
+  "_comment": "Phase 2.3 diurnal light rig, retuned in the In-The-Nature look pass (2026-09-07). Keyframes are indexed by the sun's altitude above the horizon in degrees (scripts/sim/daylight.gd computes it for any minute of any day) and lerped by scripts/view/sky_cycle.gd. Below the lowest key the values hold flat (night); above the highest they hold flat (high noon). sun_energy is the directional light energy before the seasonal scale. fog_density_scale multiplies the seasonal fog density - mist thickens at dawn and dusk. Colours are sRGB hex. Two things this pass changed and why: (1) the low-sun keyframes (1.5-16 deg) carry a strong warm sun against a sky that stays blue, and the ambient is now taken from the sky dome rather than the horizon (sky_cycle.gd) - a golden hour is warm light against cool shadow, and tinting the shadows orange too collapsed the whole frame into one brown. (2) ambient_energy is higher across the board: the ACES tonemap and the SSAO/SSIL pass were crushing the shade side of everything to black at any hour below 24 degrees, which is most of the year at 54 N.",
   "keyframes": [
     {
       "at_altitude_deg": -8.0,
-      "sun_energy": 0.06,
+      "sun_energy": 0.05,
       "sun_color": "#3a4664",
-      "sky_top": "#0d1424",
-      "sky_horizon": "#1b2740",
-      "ambient_energy": 0.06,
+      "sky_top": "#0c1322",
+      "sky_horizon": "#1a2640",
+      "ambient_energy": 0.12,
       "fog_density_scale": 1.45
     },
     {
       "at_altitude_deg": -2.0,
-      "sun_energy": 0.08,
-      "sun_color": "#7a5a6a",
-      "sky_top": "#26314f",
-      "sky_horizon": "#5b4a5e",
-      "ambient_energy": 0.12,
-      "fog_density_scale": 1.7
+      "sun_energy": 0.1,
+      "sun_color": "#8a5e6a",
+      "sky_top": "#22304f",
+      "sky_horizon": "#6a5068",
+      "ambient_energy": 0.18,
+      "fog_density_scale": 1.6
     },
     {
       "at_altitude_deg": 1.5,
-      "sun_energy": 0.45,
-      "sun_color": "#df8a4a",
-      "sky_top": "#3b4a6b",
-      "sky_horizon": "#cf8a63",
-      "ambient_energy": 0.16,
-      "fog_density_scale": 1.8
+      "sun_energy": 0.62,
+      "sun_color": "#e98a48",
+      "sky_top": "#34486e",
+      "sky_horizon": "#d99163",
+      "ambient_energy": 0.28,
+      "fog_density_scale": 1.4
     },
     {
       "at_altitude_deg": 8.0,
-      "sun_energy": 0.80,
-      "sun_color": "#eec07a",
-      "sky_top": "#4f6a9c",
-      "sky_horizon": "#d8b78d",
-      "ambient_energy": 0.24,
-      "fog_density_scale": 1.15
-    },
-    {
-      "at_altitude_deg": 24.0,
-      "sun_energy": 0.92,
-      "sun_color": "#fff2df",
-      "sky_top": "#3d547a",
-      "sky_horizon": "#bcc6d0",
-      "ambient_energy": 0.31,
+      "sun_energy": 1.02,
+      "sun_color": "#f4b874",
+      "sky_top": "#3f5c8f",
+      "sky_horizon": "#dcb890",
+      "ambient_energy": 0.4,
       "fog_density_scale": 1.0
     },
     {
+      "at_altitude_deg": 16.0,
+      "sun_energy": 1.12,
+      "sun_color": "#fbd8a4",
+      "sky_top": "#3d5f95",
+      "sky_horizon": "#c8c4b4",
+      "ambient_energy": 0.43,
+      "fog_density_scale": 0.95
+    },
+    {
+      "at_altitude_deg": 28.0,
+      "sun_energy": 1.16,
+      "sun_color": "#fff0d6",
+      "sky_top": "#385a8c",
+      "sky_horizon": "#b9c8d6",
+      "ambient_energy": 0.45,
+      "fog_density_scale": 0.9
+    },
+    {
       "at_altitude_deg": 50.0,
-      "sun_energy": 0.98,
-      "sun_color": "#fff8ee",
-      "sky_top": "#35507a",
-      "sky_horizon": "#aebfd0",
-      "ambient_energy": 0.34,
-      "fog_density_scale": 0.88
+      "sun_energy": 1.18,
+      "sun_color": "#fff8ec",
+      "sky_top": "#33578a",
+      "sky_horizon": "#b0c5da",
+      "ambient_energy": 0.46,
+      "fog_density_scale": 0.85
     }
   ]
 }

@@ -25,8 +25,11 @@ COLOR_ATTR = "Col"
 VALID_PREFIXES = ("bld_", "prop_", "agent_", "kit_")
 
 # Triangle budgets per prefix. agent_ is tight on purpose: 250 of them are on screen at once.
+# bld_ was raised from 1500 to 2400 in the In-The-Nature look pass (2026-09-07): with no textures
+# anywhere, a roof's courses and a wall's studwork *are* the geometry, and the tithe barn had
+# already hit 1494. A few dozen buildings at 2400 is still nothing next to the ground cover.
 TRI_BUDGET = {
-    "bld_": 1500,
+    "bld_": 2400,
     "prop_": 400,
     "agent_": 600,
     "kit_": 500,
