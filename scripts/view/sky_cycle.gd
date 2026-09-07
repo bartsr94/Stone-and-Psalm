@@ -102,11 +102,28 @@ func _apply() -> void:
 	_environment.volumetric_fog_density = float(season["fog_density"]) * float(sky["fog_density_scale"])
 	_environment.volumetric_fog_albedo = season["fog_color"]
 
-	# Ambient: diurnal level scaled by the season, tinted toward the horizon but lifted toward
-	# white so shadowed north slopes do not crush to black.
+	# Ambient: diurnal level scaled by the season, and coloured by the sky *dome*, not the
+	# horizon. Shade is lit by the blue overhead, so at a low sun the shadow side of a wall goes
+	# cool while its lit side goes gold — that opposition is the whole golden-hour look. Taking
+	# the ambient from the orange horizon instead tinted the shadows the same as the light and
+	# the frame collapsed into one brown. Lifted a little toward white so north slopes keep
+	# their colour.
 	_environment.ambient_light_energy = float(sky["ambient_energy"]) * float(season["ambient_energy_scale"])
-	var ambient_base := _sky_material.sky_horizon_color if _sky_material != null else Color(0.6, 0.65, 0.72)
-	_environment.ambient_light_color = ambient_base.lerp(Color.WHITE, 0.3)
+	var ambient_base := Color(0.6, 0.65, 0.72)
+	if _sky_material != null:
+		ambient_base = _sky_material.sky_top_color.lerp(_sky_material.sky_horizon_color, 0.35)
+	_environment.ambient_light_color = ambient_base.lerp(Color.WHITE, 0.2)
+
+	# Aerial perspective: the depth fog carries the horizon colour, warmed toward the sun by
+	# fog_sun_scatter in the resource. It only reaches the far side of the dale at a wide zoom
+	# (fog_depth_begin sits past the near ground), which is where a hillside should go pale and
+	# blue and the near meadow should not.
+	if _environment.fog_enabled and _sky_material != null:
+		var haze: Color = season["fog_color"]
+		# Distance haze is blue: it is sky light scattered in, so it is coloured from the dome
+		# more than the horizon, and the horizon's orange stays a rim rather than a filter.
+		var sky_light := _sky_material.sky_top_color.lerp(_sky_material.sky_horizon_color, 0.45)
+		_environment.fog_light_color = sky_light.lerp(haze, 0.4)
 
 
 func _orient_sun(altitude_deg: float, azimuth_deg: float) -> void:

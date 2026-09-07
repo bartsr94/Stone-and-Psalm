@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://scripts/view/building_placement.gd" id="13_placement"]
 [ext_resource type="Script" path="res://scripts/view/roads_renderer.gd" id="14_roads"]
 [ext_resource type="Script" path="res://scripts/ui/crew_panel.gd" id="15_crew"]
+[ext_resource type="Script" path="res://scripts/view/backdrop_renderer.gd" id="16_backdrop"]
 
 [node name="Valley" type="Node3D" unique_id=475836630]
 
@@ -22,6 +23,9 @@
 
 [node name="TerrainRenderer" type="Node3D" parent="." unique_id=1747990255]
 script = ExtResource("2_wbupf")
+
+[node name="BackdropRenderer" type="Node3D" parent="." unique_id=1747990268]
+script = ExtResource("16_backdrop")
 
 [node name="VegetationRenderer" type="Node3D" parent="." unique_id=1747990256]
 script = ExtResource("4_veg")

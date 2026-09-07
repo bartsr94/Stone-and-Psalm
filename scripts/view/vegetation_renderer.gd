@@ -22,12 +22,21 @@ const SCRUB_SAMPLE_SALT: int = 0x1C83A5F9
 const ROCK_SAMPLE_SALT: int = 0x2DA617CB
 const UNDERSTORY_SAMPLE_SALT: int = 0x3EC9289D
 const REEDS_SAMPLE_SALT: int = 0x4FDA3B6F
+const GRASS_MATERIAL_PATH := "res://assets/materials/m_grass.tres"
+const GROUND_COVER_SALT: int = 0x5D0C7A31
+## Each clump in a cell gets its own hash stream, `clump_index * GROUND_COVER_CLUMP_STRIDE` past
+## the cell's base salt, so the second clump never sits on top of the first.
+const GROUND_COVER_CLUMP_STRIDE: int = 8
 
 var _settings: Dictionary = {}
 var _models: Dictionary = {}
 var _deciduous_material: ShaderMaterial = null
 var _evergreen_material: ShaderMaterial = null
+var _grass_material: ShaderMaterial = null
 var _seasons := SeasonBlender.new()
+## Cell index -> [[batch node, instance index], ...] for every ground-cover clump, so the clumps
+## under a building placed later can be hidden without rebuilding the batch.
+var _cover_by_cell: Dictionary = {}
 
 
 func _ready() -> void:
@@ -35,7 +44,9 @@ func _ready() -> void:
 		return
 	_deciduous_material = load(DECIDUOUS_MATERIAL_PATH)
 	_evergreen_material = load(EVERGREEN_MATERIAL_PATH)
+	_grass_material = load(GRASS_MATERIAL_PATH)
 	_populate()
+	_populate_ground_cover()
 
 	SimClock.day_passed.connect(_on_day_passed)
 	_apply_season()
@@ -56,16 +67,25 @@ func _apply_season() -> void:
 	var snow: float = state["snow_coverage"]
 	var bare: bool = state["broadleaf_bare"]
 
+	# `canopy_recolour` is how far the season's tint replaces the authored canopy colour. Lower
+	# keeps the per-mass shading and the oak/birch difference the props were built with; it only
+	# goes near 1.0 when the broadleaves are bare and every canopy is the same twig-brown.
+	var recolour: float = float(_settings.get("canopy_recolour", 0.85))
 	if bare:
 		_deciduous_material.set_shader_parameter("foliage_tint", Color("#5b4a38"))
 		_deciduous_material.set_shader_parameter("foliage_recolor", 0.92)
 	else:
 		_deciduous_material.set_shader_parameter("foliage_tint", state["broadleaf_tint"])
-		_deciduous_material.set_shader_parameter("foliage_recolor", 0.85)
+		_deciduous_material.set_shader_parameter("foliage_recolor", recolour)
 	_deciduous_material.set_shader_parameter("snow_amount", snow)
 
 	_evergreen_material.set_shader_parameter("foliage_tint", state["pine_tint"])
 	_evergreen_material.set_shader_parameter("snow_amount", snow)
+
+	# Ground cover follows the ground, not the canopy: hay-gold in autumn, grey under snow.
+	if _grass_material != null:
+		_grass_material.set_shader_parameter("season_tint", state["ground_tint"])
+		_grass_material.set_shader_parameter("snow_amount", snow)
 
 
 func _load_settings() -> bool:
@@ -84,7 +104,11 @@ func _load_settings() -> bool:
 
 func _populate() -> void:
 	var broadleaf_transforms: Array[Transform3D] = []
+	var birch_transforms: Array[Transform3D] = []
 	var pine_transforms: Array[Transform3D] = []
+	# A share of the low-ground trees are birch: a second silhouette and a lighter green, so
+	# the wood does not read as one oak stamped a thousand times.
+	var birch_fraction: float = float(_settings.get("birch_fraction", 0.0))
 	var scrub_transforms: Array[Transform3D] = []
 	var rock_transforms: Array[Transform3D] = []
 	var stump_transforms: Array[Transform3D] = []
@@ -119,6 +143,8 @@ func _populate() -> void:
 				var xform := _transform_for_cell(x, y, seed, tree_settings, TREE_POSITION_SALT)
 				if Terrain.elevation_at(x, y) >= pine_min_elevation:
 					pine_transforms.append(xform)
+				elif VegetationLayout.cell_value(seed, x, y, TREE_POSITION_SALT + 5) < birch_fraction:
+					birch_transforms.append(xform)
 				else:
 					broadleaf_transforms.append(xform)
 
@@ -176,6 +202,7 @@ func _populate() -> void:
 	# Broadleaves and scrub take the season's canopy colour; pines and the woody understorey
 	# props barely shift and share the evergreen material.
 	add_child(_make_multimesh_instance("Trees", _prop_mesh("tree_broadleaf"), broadleaf_transforms, _deciduous_material))
+	add_child(_make_multimesh_instance("Birches", _prop_mesh("tree_birch"), birch_transforms, _deciduous_material))
 	add_child(_make_multimesh_instance("Scrub", _prop_mesh("scrub"), scrub_transforms, _deciduous_material))
 	add_child(_make_multimesh_instance("Ferns", _prop_mesh("fern"), fern_transforms, _deciduous_material))
 	add_child(_make_multimesh_instance("Pines", _prop_mesh("tree_pine"), pine_transforms, _evergreen_material))
@@ -183,6 +210,176 @@ func _populate() -> void:
 	add_child(_make_multimesh_instance("Stumps", _prop_mesh("stump"), stump_transforms, _evergreen_material))
 	add_child(_make_multimesh_instance("FallenLogs", _prop_mesh("fallen_log"), fallen_log_transforms, _evergreen_material))
 	add_child(_make_multimesh_instance("Reeds", _prop_mesh("reeds"), reeds_transforms, _evergreen_material))
+
+
+## Scatters grass clumps and moor tufts over every eligible cell — no sampling stride, several
+## per cell — into two MultiMesh batches carrying a colour per instance. This is the densest
+## layer in the valley by an order of magnitude (tens of thousands of clumps), so it is cheap by
+## construction: a ~30-triangle prop, no shadow casting, one draw call per batch, and transforms
+## that never change. Everything about it is `data/vegetation.json`'s `ground_cover` block.
+func _populate_ground_cover() -> void:
+	var cover: Dictionary = _settings.get("ground_cover", {})
+	if cover.is_empty():
+		return
+	var seed: int = int(_settings["seed"])
+	var per_cell: Dictionary = cover["clumps_per_cell"]
+	var tuft_terrains: Array = cover.get("moor_tuft_terrains", [])
+	var max_slope := deg_to_rad(float(cover["max_slope_degrees"]))
+	var scale_min := float(cover["scale_min"])
+	var scale_max := float(cover["scale_max"])
+	var jitter_fraction := float(cover["jitter_fraction"])
+	var sink := float(cover["sink_m"])
+	var variation := float(cover["colour_variation"])
+	var shade := Color.html(str(cover["colour_shade"]))
+	var straw := Color.html(str(cover["colour_straw"]))
+	var cell_size := Terrain.cell_size_m()
+	var cells_across := Terrain.cells_across()
+
+	var grass_transforms: Array[Transform3D] = []
+	var grass_colours := PackedColorArray()
+	var grass_cells := PackedInt32Array()
+	var tuft_transforms: Array[Transform3D] = []
+	var tuft_colours := PackedColorArray()
+	var tuft_cells := PackedInt32Array()
+	var blocked := _blocked_cells()
+
+	for y in cells_across:
+		for x in cells_across:
+			if Terrain.water_at(x, y) != TerrainTypes.Water.NONE or Terrain.is_road(x, y):
+				continue
+			if Terrain.slope_radians_at(x, y) > max_slope:
+				continue
+			var cell_key := y * cells_across + x
+			if blocked.has(cell_key):
+				continue
+			var terrain_name: String = str(TerrainTypes.Terrain.find_key(Terrain.terrain_at(x, y)))
+			var density := float(per_cell.get(terrain_name, 0.0))
+			if density <= 0.0:
+				continue
+			# The fractional part of the density is the chance of one more clump.
+			var count := int(floor(density))
+			if VegetationLayout.cell_value(seed, x, y, GROUND_COVER_SALT) < density - float(count):
+				count += 1
+			var is_tuft := terrain_name in tuft_terrains
+			var centre := Terrain.cell_to_world(x, y)
+			for clump in count:
+				var salt := GROUND_COVER_SALT + (clump + 1) * GROUND_COVER_CLUMP_STRIDE
+				var jitter_x := (VegetationLayout.cell_value(seed, x, y, salt) * 2.0 - 1.0) * cell_size * 0.5 * jitter_fraction
+				var jitter_z := (VegetationLayout.cell_value(seed, x, y, salt + 1) * 2.0 - 1.0) * cell_size * 0.5 * jitter_fraction
+				var rotation := VegetationLayout.cell_value(seed, x, y, salt + 2) * TAU
+				var scale := lerpf(scale_min, scale_max, VegetationLayout.cell_value(seed, x, y, salt + 3))
+				var world_x := centre.x + jitter_x
+				var world_z := centre.z + jitter_z
+				var origin := Vector3(world_x, _ground_height(world_x, world_z) - sink, world_z)
+				var basis := Basis.from_euler(Vector3(0.0, rotation, 0.0)).scaled(Vector3.ONE * scale)
+				var drift := shade.lerp(straw, VegetationLayout.cell_value(seed, x, y, salt + 4))
+				var tint := Color.WHITE.lerp(drift, variation)
+				if is_tuft:
+					tuft_transforms.append(Transform3D(basis, origin))
+					tuft_colours.append(tint)
+					tuft_cells.append(cell_key)
+				else:
+					grass_transforms.append(Transform3D(basis, origin))
+					grass_colours.append(tint)
+					grass_cells.append(cell_key)
+
+	var grass := _make_multimesh_instance(
+		"Grass", _prop_mesh("grass_clump"), grass_transforms, _grass_material, grass_colours, false
+	)
+	var tufts := _make_multimesh_instance(
+		"MoorTufts", _prop_mesh("moor_tuft"), tuft_transforms, _grass_material, tuft_colours, false
+	)
+	add_child(grass)
+	add_child(tufts)
+	_index_cover(grass, grass_cells)
+	_index_cover(tufts, tuft_cells)
+	if not Buildings.building_placed.is_connected(_on_building_placed):
+		Buildings.building_placed.connect(_on_building_placed)
+
+
+func _index_cover(batch: MultiMeshInstance3D, cells: PackedInt32Array) -> void:
+	for index in cells.size():
+		var key := cells[index]
+		if not _cover_by_cell.has(key):
+			_cover_by_cell[key] = []
+		_cover_by_cell[key].append([batch, index])
+
+
+## Cells no ground cover may stand on: every footprint cell of every building already placed,
+## and the precinct's church and dormitory (which `Buildings` does not own — Phase 3 places them
+## by size around a resolved cell, the same way scripts/view/precinct_renderer.gd draws them).
+## Grass through a wall is the one thing this layer must never do.
+func _blocked_cells() -> Dictionary:
+	var blocked: Dictionary = {}
+	var across := Terrain.cells_across()
+	for id in Buildings.building_ids():
+		for cell in Buildings.get_building(id).footprint_cells():
+			blocked[cell.y * across + cell.x] = true
+
+	var cell_size := Terrain.cell_size_m()
+	for building in Population.precinct_config().get("buildings", []):
+		var entry: Dictionary = building
+		var door_offset := Vector2i(int(entry["door_offset_cells"][0]), int(entry["door_offset_cells"][1]))
+		var centre: Vector2i
+		match str(entry["id"]):
+			"church":
+				centre = Population.church_door() - door_offset
+			"dormitory":
+				centre = Population.dormitory_door() - door_offset
+			_:
+				centre = Vector2i(int(entry["anchor"][0]), int(entry["anchor"][1]))
+		var size: Array = entry["size_m"]
+		# Half the plan plus a cell's clearance, in cells, either side of the centre.
+		var half_x := int(ceil((float(size[0]) * 0.5 + 0.7) / cell_size))
+		var half_z := int(ceil((float(size[2]) * 0.5 + 0.7) / cell_size))
+		for dy in range(-half_z, half_z + 1):
+			for dx in range(-half_x, half_x + 1):
+				var x := centre.x + dx
+				var y := centre.y + dy
+				if Terrain.is_inside(x, y):
+					blocked[y * across + x] = true
+	return blocked
+
+
+## A building placed after the meadow was scattered: collapse every clump on its footprint to
+## nothing. The transforms are otherwise never touched, so this is the only runtime write.
+func _on_building_placed(id: int) -> void:
+	var building := Buildings.get_building(id)
+	if building == null:
+		return
+	var across := Terrain.cells_across()
+	var hidden := Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO)
+	for cell in building.footprint_cells():
+		var key: int = cell.y * across + cell.x
+		if not _cover_by_cell.has(key):
+			continue
+		for entry in _cover_by_cell[key]:
+			var batch: MultiMeshInstance3D = entry[0]
+			batch.multimesh.set_instance_transform(int(entry[1]), hidden)
+
+
+## The ground's height between cell centres, bilinear over the four nearest cells. The terrain
+## mesh interpolates corner heights that are themselves averages of the surrounding cells, so
+## this lands within a few centimetres of the rendered surface — close enough that a clump
+## neither floats nor sinks once `sink_m` has buried its root.
+func _ground_height(world_x: float, world_z: float) -> float:
+	var across := Terrain.cells_across()
+	var cell := Terrain.world_to_cell(Vector3(world_x, 0.0, world_z))
+	cell.x = clampi(cell.x, 0, across - 1)
+	cell.y = clampi(cell.y, 0, across - 1)
+	var centre := Terrain.cell_to_world(cell.x, cell.y)
+	var cell_size := Terrain.cell_size_m()
+	var fx := (world_x - centre.x) / cell_size
+	var fz := (world_z - centre.z) / cell_size
+	var next_x := clampi(cell.x + (1 if fx >= 0.0 else -1), 0, across - 1)
+	var next_y := clampi(cell.y + (1 if fz >= 0.0 else -1), 0, across - 1)
+	var tx := absf(fx)
+	var tz := absf(fz)
+	var h00 := Terrain.elevation_at(cell.x, cell.y)
+	var h10 := Terrain.elevation_at(next_x, cell.y)
+	var h01 := Terrain.elevation_at(cell.x, next_y)
+	var h11 := Terrain.elevation_at(next_x, next_y)
+	return lerpf(lerpf(h00, h10, tx), lerpf(h01, h11, tx), tz)
 
 
 func _woodland_eligible(x: int, y: int, tree_slope: float) -> bool:
@@ -261,23 +458,34 @@ func _transform_for_cell(
 	return Transform3D(basis, ground_position + Vector3(jitter.x, 0.0, jitter.y))
 
 
+## `colours`, when given one per transform, becomes the per-instance colour the material reads
+## through COLOR (the ground cover's straw/shade drift). `casts_shadows` is off for the ground
+## cover: tens of thousands of clumps in the shadow pass cost more than the whole rest of the
+## scene, and a blade of grass throws no shadow anyone can see from this camera.
 func _make_multimesh_instance(
 	node_name: String,
 	mesh: Mesh,
 	transforms: Array[Transform3D],
-	material: Material
+	material: Material,
+	colours: PackedColorArray = PackedColorArray(),
+	casts_shadows: bool = true
 ) -> MultiMeshInstance3D:
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.use_colors = colours.size() == transforms.size() and not colours.is_empty()
 	multimesh.mesh = mesh
 	multimesh.instance_count = transforms.size()
 	for index in transforms.size():
 		multimesh.set_instance_transform(index, transforms[index])
+		if multimesh.use_colors:
+			multimesh.set_instance_color(index, colours[index])
 
 	var instance := MultiMeshInstance3D.new()
 	instance.name = node_name
 	instance.multimesh = multimesh
 	instance.material_override = material
+	if not casts_shadows:
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return instance
 
 

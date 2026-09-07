@@ -107,7 +107,10 @@ These are exactly the errors that are silent in Blender and costly later:
 - **Colour attribute named `Col`**, `BYTE_COLOR`. Without it the mesh is a grey box.
 - **Exactly one material**, and it is `M_StoneAndPsalm`. More than one and both the batching
   and the palette-coherence arguments collapse.
-- **Triangle budget** — `bld_` 1500, `prop_` 400, `agent_` 600, `kit_` 500.
+- **Triangle budget** — `bld_` 2400, `prop_` 400, `agent_` 600, `kit_` 500. (`bld_` was 1500
+  until the In-The-Nature look pass, 2026-09-07: with no textures, a roof's courses and a wall's
+  studwork *are* the surface, and the tithe barn had already hit 1494. See
+  `docs/implementations/in_the_nature_look_pass.md`.)
 - **No lights or cameras** saved in an asset file — they travel into the `.glb` and fight the
   scene's own lighting rig.
 - Warns on unapplied modifiers.

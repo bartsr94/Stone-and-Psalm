@@ -261,6 +261,51 @@ func test_vegetation_renderer_has_batched_categories() -> void:
 		assert_gt(instances.multimesh.instance_count, 0, "%s has visible instances" % populated)
 
 
+func test_vegetation_renderer_scatters_ground_cover() -> void:
+	# The ground cover is its own layer: thousands of clumps per batch, a colour per instance,
+	# the grass shader rather than the canopy one, and no shadow casting (it would cost more than
+	# the rest of the scene). Grass follows the meadow; tufts the moor and rock.
+	var renderer: Node3D = _find("VegetationRenderer") as Node3D
+	for category in ["Grass", "MoorTufts"]:
+		var instances: MultiMeshInstance3D = renderer.find_child(category, true, false) as MultiMeshInstance3D
+		assert_not_null(instances, "%s MultiMesh exists" % category)
+		assert_gt(instances.multimesh.instance_count, 1000, "%s is dense" % category)
+		assert_true(instances.multimesh.use_colors, "%s carries a colour per clump" % category)
+		assert_eq(
+			instances.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			"%s casts no shadows" % category
+		)
+		var material := instances.material_override as ShaderMaterial
+		assert_eq(
+			material.shader.resource_path, "res://assets/materials/grass.gdshader",
+			"%s draws the ground-cover shader" % category
+		)
+	var grass := renderer.find_child("Grass", true, false) as MultiMeshInstance3D
+	var tufts := renderer.find_child("MoorTufts", true, false) as MultiMeshInstance3D
+	assert_gt(grass.multimesh.instance_count, tufts.multimesh.instance_count, "the dale floor is meadow")
+
+
+func test_backdrop_fells_ring_the_map() -> void:
+	# The fells beyond the map edge: one mesh, the terrain ground material (so snow and the
+	# seasonal tint reach them), no shadows, and its inner edge on the map boundary.
+	var backdrop: Node3D = _find("BackdropRenderer") as Node3D
+	assert_not_null(backdrop, "the backdrop renderer is instanced")
+	var fells := backdrop.find_child("Fells", true, false) as MeshInstance3D
+	assert_not_null(fells, "the fells mesh exists")
+	assert_not_null(fells.mesh, "the fells have a generated mesh")
+	assert_eq(fells.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "the fells cast no shadows")
+	assert_eq(
+		(fells.material_override as Material).resource_path,
+		"res://assets/materials/m_terrain_ground.tres",
+		"the fells wear the terrain ground material"
+	)
+	var aabb := fells.mesh.get_aabb()
+	var half_extent := Terrain.world_size_m() * 0.5
+	assert_gt(aabb.size.x, half_extent * 2.5, "the ring reaches well past the map")
+	assert_lt(aabb.position.x, -half_extent, "the ring surrounds the map on the west")
+	assert_gt(aabb.end.x, half_extent, "the ring surrounds the map on the east")
+
+
 func test_vegetation_foliage_follows_the_season() -> void:
 	var renderer: Node3D = _find("VegetationRenderer") as Node3D
 	var trees := renderer.find_child("Trees", true, false) as MultiMeshInstance3D

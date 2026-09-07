@@ -47,3 +47,12 @@ shot_out.txt
 shot_err.txt
 import_out.txt
 import_err.txt
+
+# Reference scenes (third-party, large). Never committed.
+assets/reference/
+
+# Terrain3D ships a sample project; it landed at the repo root with the addon install. Not the game.
+/demo/
+
+# Windows replace-file leftovers, e.g. the Godot editor swapping a GDExtension dll it has loaded
+*.TMP

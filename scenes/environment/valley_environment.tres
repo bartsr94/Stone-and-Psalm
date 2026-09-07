@@ -1,16 +1,27 @@
 [gd_resource type="Environment" format=3]
 
-; The valley's environment. Tuned in the Banished-look pass, and three of these choices are load
-; bearing:
+; The valley's environment. Tuned in the Banished-look pass and again in the In-The-Nature look
+; pass (2026-09-07). The load-bearing choices:
 ;
 ; - **ACES rather than AgX.** AgX desaturates as it rolls off, so with the light rig running hot
 ;   every albedo in the valley — meadow, thatch, oak, limestone — converged on the same pale
 ;   olive. ACES keeps hue into the highlights, which is what lets the palette be visible at all.
 ; - **Low sky ambient, strong sun** (see data/sky.json). A northern landscape reads by contrast
-;   between a lit face and a shaded one; a high ambient fills the shadows and flattens it.
+;   between a lit face and a shaded one; a high ambient fills the shadows and flattens it. The
+;   ambient is coloured from the sky dome by scripts/view/sky_cycle.gd so shade stays cool.
 ; - **SSAO and SSIL stay on, tighter.** They do the work of grounding a building on the terrain
 ;   and bouncing a little colour up under the eaves, which is most of what makes a low-poly model
 ;   sit in a scene rather than on top of it. No SDFGI, no lightmaps (Architecture Guide §4).
+; - **Glow, soft-light and low.** Not a bloom: a slight lift on the brightest lit faces and the
+;   water, which is what a real lens does with a low sun. Above ~0.5 it starts to look like a
+;   screenshot filter and hides the geometry.
+; - **Depth fog for aerial perspective, starting past the near ground.** The camera is
+;   orthographic and sits camera.distance_m (150 m) from its focus, so distance-from-camera
+;   only varies by the height of the screen. fog_depth_begin is set beyond the near edge at the
+;   closest zoom, so the haze reaches only the far hillside at a wide zoom — where a dale goes
+;   pale and blue — and never the meadow in front of the camera.
+; - **Screen-space reflections** so the beck mirrors the sky and the trees along its bank.
+;   Cheap at this scene size, and water that reflects nothing reads as painted.
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_scb8i"]
 sky_top_color = Color(0.24, 0.33, 0.48, 1)
@@ -27,19 +38,45 @@ background_mode = 2
 sky = SubResource("Sky_ir3sh")
 ambient_light_source = 3
 tonemap_mode = 3
-tonemap_white = 1.6
+tonemap_white = 1.7
 adjustment_enabled = true
-adjustment_contrast = 1.12
-adjustment_saturation = 1.06
+adjustment_contrast = 1.1
+adjustment_saturation = 1.12
+ssr_enabled = true
+ssr_max_steps = 96
+ssr_fade_in = 0.15
+ssr_fade_out = 2.0
+ssr_depth_tolerance = 0.25
 ssao_enabled = true
 ssao_radius = 1.1
-ssao_intensity = 2.6
-ssao_power = 1.6
+ssao_intensity = 2.2
+ssao_power = 1.5
 ssao_detail = 0.6
 ssil_enabled = true
 ssil_radius = 3.5
-ssil_intensity = 0.8
+ssil_intensity = 0.9
+glow_enabled = true
+glow_intensity = 0.42
+glow_strength = 0.85
+glow_bloom = 0.04
+glow_blend_mode = 2
+glow_hdr_threshold = 0.95
+glow_hdr_scale = 2.0
+fog_enabled = true
+fog_mode = 1
+fog_light_color = Color(0.72, 0.76, 0.84, 1)
+fog_light_energy = 1.0
+fog_sun_scatter = 0.05
+fog_density = 0.35
+fog_aerial_perspective = 0.6
+fog_sky_affect = 0.2
+fog_depth_curve = 1.2
+fog_depth_begin = 250.0
+fog_depth_end = 620.0
 volumetric_fog_enabled = true
 volumetric_fog_density = 0.0028
 volumetric_fog_albedo = Color(0.76, 0.78, 0.82, 1)
 volumetric_fog_length = 512.0
+volumetric_fog_anisotropy = 0.35
+volumetric_fog_ambient_inject = 0.15
+volumetric_fog_sky_affect = 0.5

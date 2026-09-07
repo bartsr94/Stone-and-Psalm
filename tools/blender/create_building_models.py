@@ -27,7 +27,9 @@ Three conventions the renderer depends on:
 import json
 import math
 import os
+import random
 import sys
+import zlib
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,6 +38,29 @@ from meshkit import ROOT, MeshBuilder, build_all, finish, mix  # noqa: E402
 CELL_M = 2.0          # world.terrain_cell_m; the one number this shares with the sim
 WALL_INSET_M = 0.55   # walls stand back from the plot edge, so the eaves sit inside it
 EAVES_M = 0.48        # the overhang that does most of the work of reading as medieval
+
+# --- surface, not shape (In-The-Nature look pass, 2026-09-07) --------------------------------
+#
+# From the game's 40° camera a building is two-thirds roof, and a roof drawn as clean bands of
+# one colour is a slab however good the walls under it are. Two whole-mesh passes and one roof
+# treatment do what a texture would do elsewhere:
+#
+# - `EAVES_SHADOW_M` / `EAVES_SHADOW`: every wall darkens toward the eaves (`shade_band`) — the
+#   shadow a deep overhang throws down its own wall, which grounds the roof on the building.
+# - `WEATHERING`: a per-face value jitter over the whole model (`weather`), so no two courses,
+#   studs or shingles are the same number. Small, but it is the difference between "model"
+#   and "building" at this distance.
+# - Thatch is laid as hand-width segments in courses (`thatch_texture`), each aged a
+#   different amount, darker toward its lower edge, with moss creeping down the north pitch.
+EAVES_SHADOW_M = 1.15
+EAVES_SHADOW = 0.30
+WEATHERING = 0.055
+
+
+def _rng_for(name):
+    """A generator seeded from the model name, so a rebuild is byte-identical and two
+    buildings never weather the same way. (`hash()` of a str changes between Python runs.)"""
+    return random.Random(zlib.crc32(name.encode("utf-8")))
 
 
 def building_types():
@@ -340,7 +365,8 @@ def thatch_fringe(b, span_x, span_y, eaves_z, colour):
             left = -hx + i * bundle_w
             right = left + bundle_w + 0.025
             drop = 0.15 + (i * 7 % 5) * 0.035
-            shade = mix(colour, "thatch_old", 0.18 + (i * 3 % 4) * 0.09)
+            # The fringe is the oldest, wettest straw on the roof; never new gold.
+            shade = mix(colour, "thatch_old", 0.45 + (i * 3 % 4) * 0.09)
             corners = ((left, y, eaves_z + 0.08), (right, y, eaves_z + 0.08),
                        (right - 0.035, y, eaves_z - drop),
                        (left + 0.02, y, eaves_z - drop * 0.82))
@@ -349,38 +375,55 @@ def thatch_fringe(b, span_x, span_y, eaves_z, colour):
             b.quad(*corners, shade)
 
 
-def thatch_weathering(b, span_x, span_y, eaves_z, height, colour):
-    """Sparse, broad repairs and damp patches on an otherwise continuous thatched slope."""
+def thatch_texture(b, span_x, span_y, eaves_z, height, colour, rng):
+    """Thatch laid as courses of hand-width segments over the whole pitch.
+
+    Each segment is aged its own amount between new straw and `thatch_old`, shaded darker
+    toward its lower edge (a per-corner gradient, `face_shaded`) so the courses step down the
+    roof as they do in a real thatch, and the north pitch grows moss from the ridge down. Seen
+    from above — which is how the game sees every roof — this is the difference between a slab
+    of mustard and a thatched roof. Two triangles a segment; the barn's roof is ~600."""
     hx, hy = span_x * 0.5, span_y * 0.5
-    rows = 5
-    columns = max(5, min(14, int(span_x / 1.45)))
-    patch_w = span_x / columns
+    rows = max(6, min(11, int(span_y / 1.05)))
+    columns = max(6, min(24, int(span_x / 0.9)))
+    seg_w = span_x / columns
     slope_length = math.hypot(hy, height)
-    lift_y = height / slope_length * 0.025
-    lift_z = hy / slope_length * 0.025
+    lift_y = height / slope_length * 0.03
+    lift_z = hy / slope_length * 0.03
+    moss = mix("thatch_old", "foliage_dark", 0.55)
     for slope in (-1.0, 1.0):
+        north = slope > 0
         for row in range(rows):
             t0, t1 = row / rows, (row + 1) / rows
             y0 = slope * (hy * (1.0 - t0) + lift_y)
             y1 = slope * (hy * (1.0 - t1) + lift_y)
             z0 = eaves_z + height * t0 + lift_z
             z1 = eaves_z + height * t1 + lift_z
-            for column in range(columns):
-                if (row * 5 + column * 7 + (1 if slope > 0 else 0)) % 4:
+            stagger = seg_w * 0.5 if row % 2 else 0.0
+            for column in range(columns + 1):
+                left = max(-hx, -hx + column * seg_w - stagger)
+                right = min(hx, -hx + (column + 1) * seg_w - stagger)
+                if right - left < 0.15:
                     continue
-                left = -hx + column * patch_w + patch_w * 0.10
-                right = min(hx, left + patch_w * 1.35)
-                shade = mix(colour, "thatch_old", 0.08 + ((row + column) % 3) * 0.05)
+                age = rng.uniform(0.0, 1.0)
+                shade = mix(colour, "thatch_old", 0.22 + 0.5 * age)
+                # Rain runs down: the lower courses are darker and greyer than the ridge.
+                shade = mix(shade, "oak_dark", 0.12 * (1.0 - t0))
+                if north and t0 > 0.4 and rng.uniform(0.0, 1.0) < 0.42:
+                    shade = mix(shade, moss, 0.35 + 0.35 * age)
+                lower = mix(shade, "oak_dark", 0.24)
                 if slope < 0:
-                    b.quad((left, y0, z0), (right, y0, z0),
-                           (right, y1, z1), (left, y1, z1), shade)
+                    b.face_shaded(((left, y0, z0), (right, y0, z0),
+                                   (right, y1, z1), (left, y1, z1)),
+                                  (lower, lower, shade, shade))
                 else:
-                    b.quad((right, y0, z0), (left, y0, z0),
-                           (left, y1, z1), (right, y1, z1), shade)
+                    b.face_shaded(((right, y0, z0), (left, y0, z0),
+                                   (left, y1, z1), (right, y1, z1)),
+                                  (lower, lower, shade, shade))
 
 
 def roof(b, width, depth, eaves_z, colour, pitch=0.52, ridge_colour="oak_dark",
-         gable_colour=None, courses=6, thatched=False):
+         gable_colour=None, courses=6, thatched=False, rng=None):
     """A pitched roof with a deep overhang, laid in courses, with a ridge timber along the top.
 
     `pitch` is the roof's height as a fraction of its full span, so 0.5 is a 45 degree roof:
@@ -389,7 +432,12 @@ def roof(b, width, depth, eaves_z, colour, pitch=0.52, ridge_colour="oak_dark",
     span_x = width + EAVES_M * 2.0
     span_y = depth + EAVES_M * 2.0
     height = span_y * pitch
-    b.gable_roof((0.0, 0.0, eaves_z), (span_x, span_y), height, colour,
+    rng = rng or random.Random(0x7A7C)
+    # Thatch is never the colour of new straw for long: the structural slope under the
+    # segments starts a third of the way to `thatch_old`, so a gap between segments reads as
+    # older straw rather than as a stripe of fresh gold.
+    base_colour = mix(colour, "thatch_old", 0.35) if thatched else colour
+    b.gable_roof((0.0, 0.0, eaves_z), (span_x, span_y), height, base_colour,
                  ridge_colour=mix(colour, "oak_dark", 0.22),
                  gable_colour=gable_colour or mix(colour, "oak_dark", 0.10),
                  courses=courses,
@@ -397,7 +445,7 @@ def roof(b, width, depth, eaves_z, colour, pitch=0.52, ridge_colour="oak_dark",
                  eaves_thickness=0.46 if thatched else 0.18)
     if thatched:
         thatch_fringe(b, span_x, span_y, eaves_z, colour)
-        thatch_weathering(b, span_x, span_y, eaves_z, height, colour)
+        thatch_texture(b, span_x, span_y, eaves_z, height, colour, rng)
         # A thatched ridge is a rolled, pegged cap sitting proud of both pitches, not a timber.
         b.cylinder((-span_x * 0.495, 0.0, eaves_z + height + 0.02), 0.31,
                    span_x * 0.99, 8, mix(colour, "thatch_old", 0.12), colour, direction="x")
@@ -538,8 +586,11 @@ def timber_hall(b, type_id, wall_h, wall_colour, roof_colour,
     door(b, width, depth, plinth_h)
     if with_windows:
         windows(b, width, depth, plinth_h, wall_h * 0.60, with_windows)
+    # The eaves' shadow down the wall, applied before the roof exists so only the wall takes it.
+    b.shade_band(plinth_h + wall_h - EAVES_SHADOW_M, plinth_h + wall_h, EAVES_SHADOW, "slate")
     roof_h = roof(b, width, depth, plinth_h + wall_h, roof_colour, pitch=pitch,
-                  gable_colour=mix(infill, "oak_dark", 0.18), thatched=thatched)
+                  gable_colour=mix(infill, "oak_dark", 0.18), thatched=thatched,
+                  rng=_rng_for(type_id + "_roof"))
     gable_infill(b, width, depth, plinth_h + wall_h, roof_h, colour=infill)
     return width, depth, plinth_h, wall_h, roof_h, swapped
 
@@ -553,6 +604,7 @@ _overruns = []
 
 
 def emit(type_id, b, swapped):
+    b.weather(_rng_for(type_id), WEATHERING)
     if swapped:
         b.swap_xy()
     cells = TYPES[type_id]["footprint_cells"]
@@ -569,6 +621,7 @@ def emit(type_id, b, swapped):
 def emit_free(name, b, swapped):
     """Emit a model whose size comes from somewhere other than `footprint_cells`, so there is no
     plot to check it against."""
+    b.weather(_rng_for(name), WEATHERING)
     if swapped:
         b.swap_xy()
     finish("bld_" + name, b)
@@ -694,8 +747,9 @@ def make_granary():
     for i in range(3):
         b.box((0.0, -depth * 0.5 - 0.16 - i * 0.20, floor_z - 0.22 - i * 0.30),
               (1.9, 0.40, 0.26), "limestone_shadow", top_colour="limestone_mid")
+    b.shade_band(floor_z + wall_h - EAVES_SHADOW_M, floor_z + wall_h, EAVES_SHADOW, "slate")
     roof_h = roof(b, width, depth, floor_z + wall_h, "thatch", pitch=0.56, thatched=True,
-                  gable_colour=mix(INFILL, "oak_dark", 0.18))
+                  gable_colour=mix(INFILL, "oak_dark", 0.18), rng=_rng_for("granary_roof"))
     gable_infill(b, width, depth, floor_z + wall_h, roof_h)
     gable_vent(b, width, depth, floor_z + wall_h, roof_h)
     # Ventilation slits down the long walls: a granary has to breathe or the grain heats.
@@ -734,8 +788,9 @@ def make_tithe_barn():
             b.panel("+y" if sy > 0 else "-y", (x, depth * 0.5 * sy, plinth_h + wall_h * 0.72),
                     (0.42, 1.5), "limestone_shadow", offset=0.04)
 
+    b.shade_band(plinth_h + wall_h - EAVES_SHADOW_M, plinth_h + wall_h, EAVES_SHADOW, "slate")
     roof_h = roof(b, width, depth, plinth_h + wall_h, "thatch", pitch=0.50, courses=9,
-                  thatched=True)
+                  thatched=True, rng=_rng_for("tithe_barn_roof"))
     # The cart porch: a gabled projection over the great doors on the long side.
     porch_d = 1.6
     b.box((0.0, -depth * 0.5 - porch_d * 0.5, plinth_h + wall_h * 0.42),
@@ -787,6 +842,7 @@ def make_cellarers_undercroft():
             b.panel(face, (x, depth * 0.5 * sy, plinth_h + 2.44), (0.46, 0.42), "oak_dark",
                     offset=0.04)
     door(b, width, depth, plinth_h, height=2.3, span=1.8, colour="oak_weathered")
+    b.shade_band(plinth_h + wall_h - EAVES_SHADOW_M, plinth_h + wall_h, EAVES_SHADOW, "slate")
     # A shallow lead pitch, not a steep thatch: lead cannot be laid steep and should not look it.
     roof(b, width, depth, plinth_h + wall_h, "lead_roof", pitch=0.26, ridge_colour="slate",
          courses=4)
@@ -860,6 +916,7 @@ def make_precinct_church():
                     (0.52, 1.4), "oak_dark", offset=0.04)
             b.panel(face, (x, nave_d * 0.5 * sign, plinth_h + wall_h * 0.62 + 0.84),
                     (0.36, 0.34), "oak_dark", offset=0.04)
+    b.shade_band(plinth_h + wall_h - EAVES_SHADOW_M, plinth_h + wall_h, EAVES_SHADOW, "slate")
     roof_h = roof(b, nave_w, nave_d, plinth_h + wall_h, "shingle", pitch=0.60, courses=8,
                   gable_colour=mix(INFILL, "oak_dark", 0.18))
     gable_infill(b, nave_w, nave_d, plinth_h + wall_h, roof_h)
@@ -897,8 +954,10 @@ def make_precinct_dormitory():
     timber_walls(b, hall_w, hall_d, plinth_h, wall_h)
     door(b, hall_w, hall_d, plinth_h, height=2.0, span=1.4)
     windows(b, hall_w, hall_d, plinth_h, wall_h * 0.66, count=4)
+    b.shade_band(plinth_h + wall_h - EAVES_SHADOW_M, plinth_h + wall_h, EAVES_SHADOW, "slate")
     roof_h = roof(b, hall_w, hall_d, plinth_h + wall_h, "thatch", pitch=0.56, courses=7,
-                  thatched=True, gable_colour=mix(INFILL, "oak_dark", 0.18))
+                  thatched=True, gable_colour=mix(INFILL, "oak_dark", 0.18),
+                  rng=_rng_for("dormitory_roof"))
     gable_infill(b, hall_w, hall_d, plinth_h + wall_h, roof_h)
     smoke_louvre(b, hall_w * 0.24, plinth_h + wall_h + roof_h)
     emit_free("precinct_dormitory", b, swapped=True)

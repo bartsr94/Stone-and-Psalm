@@ -1,0 +1,17 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+; Ground cover: grass clumps and moor tufts. Sways in the wind, takes the season's ground tint
+; and a per-instance colour (see grass.gdshader); driven by scripts/view/vegetation_renderer.gd.
+
+[ext_resource type="Shader" path="res://assets/materials/grass.gdshader" id="1_grass"]
+
+[resource]
+resource_name = "M_Grass"
+shader = ExtResource("1_grass")
+shader_parameter/season_tint = Color(1, 1, 1, 1)
+shader_parameter/snow_amount = 0.0
+shader_parameter/snow_color = Color(0.87, 0.89, 0.92, 1)
+shader_parameter/wind_strength = 0.09
+shader_parameter/wind_speed = 1.4
+shader_parameter/wind_wavelength_m = 9.0
+shader_parameter/ambient_lift = 0.25

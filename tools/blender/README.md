@@ -42,6 +42,25 @@ The reproducible low-poly source for the supporting valley props lives in
 `prop_timber_shelter`, and `prop_campfire`. They are intentionally placeholders for the future
 hand-modelled church and settlement buildings; run the validator and exporter afterwards.
 
+## Create the trees, the ground cover and the buildings
+
+- `create_tree_props.py` — `prop_tree_broadleaf` (oak), `prop_tree_pine` (Scots pine, bare
+  trunk and plated crown) and `prop_tree_birch`. Silhouette is the point; see the docstring.
+- `create_ground_cover_props.py` — `prop_grass_clump` and `prop_moor_tuft`, instanced in the
+  tens of thousands by `scripts/view/vegetation_renderer.gd`. ~30 triangles each, on purpose.
+- `create_building_models.py` — one `bld_*` per entry in `data/buildings.json` plus the two
+  precinct buildings, sized from the JSON footprints. Thatch is laid as aged segments, walls
+  carry their eaves' shadow, and every face is weathered (`meshkit.shade_band` / `weather`).
+
+All three are deterministic: a rebuild is byte-identical. Run the validator and exporter after
+any of them, then `godot --headless --import --path .` so Godot picks up new `.glb` files.
+
+To see a set before it goes in game:
+
+```powershell
+& $BLENDER --background --python tools/blender/preview_assets.py -- "prop_tree_*" docs/screenshots/trees.png
+```
+
 ## Repair a file's material / colour attribute
 
 ```powershell
@@ -63,5 +82,5 @@ while painting.
 | Origin | Ground-centre of the footprint (bbox on z=0, centred x/y) |
 | Colour attribute | `Col`, `BYTE_COLOR`, corner domain |
 | Material | Exactly one: `M_StoneAndPsalm` |
-| Triangle budget | `bld_` 1500 · `prop_` 400 · `agent_` 600 · `kit_` 500 |
+| Triangle budget | `bld_` 2400 · `prop_` 400 · `agent_` 600 · `kit_` 500 |
 | Export | glTF `.glb`, +Y up, −Z forward, no lights/cameras/UVs |

@@ -105,6 +105,51 @@ class MeshBuilder:
     def quad(self, a, b, c, d, colour):
         self.face((a, b, c, d), colour)
 
+    def face_shaded(self, positions, colours):
+        """A face with a colour per corner: a gradient across one quad, at no extra geometry.
+
+        Every face owns its vertices, so this is free — and it is how a thatched course can
+        darken toward the eaves or a wall can carry the shadow of its own roof without splitting
+        a single polygon."""
+        self.faces.append(tuple(self.vertex(p, c) for p, c in zip(positions, colours)))
+
+    # --- whole-mesh colour passes -----------------------------------------------------------
+    #
+    # These run over vertices already placed, so they compose with any shape code above them.
+    # They are what gives an untextured building the *surface* a texture would otherwise carry:
+    # the shadow a roof throws down its own wall, the weathering that stops nine identical
+    # faces from being identical.
+
+    def shade_band(self, z_from, z_to, amount, colour=None):
+        """Darken every vertex between two heights, strongest at `z_to`, fading to nothing at
+        `z_from`. `colour` (default black) is what it darkens toward: pass a cool grey for a
+        sky-lit shadow, a warm brown for rain-streaking under an eave."""
+        target = rgba(colour) if colour is not None else (0.0, 0.0, 0.0, 1.0)
+        span = max(1e-6, z_to - z_from)
+        for index, (_, _, z) in enumerate(self.vertices):
+            if z < z_from or z > z_to:
+                continue
+            t = amount * (z - z_from) / span
+            c = self.colours[index]
+            self.colours[index] = tuple(c[i] + (target[i] - c[i]) * t for i in range(3)) + (c[3],)
+
+    def weather(self, rng, amount=0.06, warm=None):
+        """Per-face colour jitter, so no two courses, planks or shingles are the same value.
+
+        Deterministic through `rng`. `warm` optionally drifts a random share of faces toward a
+        palette colour as well as varying their value — lichen on stone, moss on thatch."""
+        warm_colour = rgba(warm) if warm is not None else None
+        for face in self.faces:
+            scale = 1.0 + rng.uniform(-amount, amount)
+            drift = rng.uniform(0.0, 1.0)
+            for index in face:
+                c = self.colours[index]
+                shaded = tuple(min(1.0, c[i] * scale) for i in range(3))
+                if warm_colour is not None and drift > 0.72:
+                    t = (drift - 0.72) * 0.9
+                    shaded = tuple(shaded[i] + (warm_colour[i] - shaded[i]) * t for i in range(3))
+                self.colours[index] = shaded + (c[3],)
+
     def box(self, centre, size, colour, top_colour=None):
         """An axis-aligned box centred on `centre`, z up."""
         cx, cy, cz = centre
@@ -186,14 +231,25 @@ class MeshBuilder:
             return normalise(tuple((a[i] + b[i]) * 0.5 for i in range(3)))
 
         cx, cy, cz = centre
+        # One jitter per *direction*, not per face corner: faces own their vertices, so
+        # jittering each corner independently tore cracks between neighbouring facets and the
+        # canopy showed dark slits from every angle. Shared directions now move together and
+        # the surface stays closed however lumpy it gets.
+        jitter_for = {}
+
+        def scaled(direction):
+            key = tuple(round(v, 5) for v in direction)
+            if key not in jitter_for:
+                jitter_for[key] = (1.0 + rng.uniform(-jitter, jitter)
+                                   if jitter and rng is not None else 1.0)
+            return radius * jitter_for[key]
+
         for a, b, c in octahedron:
             ab, bc, ca = midpoint(a, b), midpoint(b, c), midpoint(c, a)
             for face in ((a, ab, ca), (ab, b, bc), (ca, bc, c), (ab, bc, ca)):
                 placed = []
                 for direction in face:
-                    scale = radius
-                    if jitter and rng is not None:
-                        scale *= 1.0 + rng.uniform(-jitter, jitter)
+                    scale = scaled(direction)
                     placed.append((cx + direction[0] * scale,
                                    cy + direction[1] * scale,
                                    cz + direction[2] * scale * squash))
